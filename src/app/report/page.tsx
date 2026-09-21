@@ -18,7 +18,8 @@ import {
   Plus,
   Sparkles,
   AlertCircle,
-  Eye
+  Eye,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -50,6 +51,7 @@ export default function ReportPage() {
     room: '',
     locationDetail: '',
     contactName: '',
+    studentId: '',
     contactPhone: '',
     contactOther: ''
   });
@@ -58,10 +60,37 @@ export default function ReportPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdItem, setCreatedItem] = useState<any>(null);
 
+  // Validation Limits
+  const LIMITS = {
+    name: 100,
+    room: 50,
+    locationDetail: 150,
+    description: 500,
+    contactName: 80,
+    studentId: 13,
+    contactPhone: 10,
+    contactOther: 100
+  };
+
+  // Validation Error Checks
+  const errors = {
+    name: formData.name.length > LIMITS.name ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.name} ตัวอักษร)` : '',
+    room: formData.room.length > LIMITS.room ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.room} ตัวอักษร)` : '',
+    locationDetail: formData.locationDetail.length > LIMITS.locationDetail ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.locationDetail} ตัวอักษร)` : '',
+    description: formData.description.length > LIMITS.description ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.description} ตัวอักษร)` : '',
+    contactName: formData.contactName.length > LIMITS.contactName ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.contactName} ตัวอักษร)` : '',
+    studentId: formData.studentId.length > LIMITS.studentId ? `รหัสนักศึกษาต้องไม่เกิน ${LIMITS.studentId} หลัก` : '',
+    contactPhone: formData.contactPhone.length > LIMITS.contactPhone ? `เบอร์โทรศัพท์ต้องไม่เกิน ${LIMITS.contactPhone} หลัก` : '',
+    contactOther: formData.contactOther.length > LIMITS.contactOther ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.contactOther} ตัวอักษร)` : ''
+  };
+
+  const hasErrors = Object.values(errors).some(err => Boolean(err));
+
   const handleQuickFill = () => {
     setFormData(prev => ({
       ...prev,
       contactName: 'กุริญา ทาเทร์',
+      studentId: '6504101234',
       contactPhone: '0812345678',
       contactOther: 'Line ID: kuriya_t'
     }));
@@ -113,6 +142,11 @@ export default function ReportPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (hasErrors) {
+      alert('กรุณาตรวจสอบข้อมูลที่กรอกเกินขีดจำกัดก่อนบันทึก');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const generatedCode = `LF-2026-000${Math.floor(Math.random() * 90) + 10}`;
@@ -124,15 +158,16 @@ export default function ReportPage() {
     const newItem = {
       id: Math.random().toString(36).substring(2) + Date.now().toString(36),
       code: generatedCode,
-      name: formData.name,
-      description: formData.description,
+      name: formData.name.trim(),
+      description: formData.description.trim(),
       category: selectedCat,
-      location: locationString,
+      location: locationString.trim(),
       dateLost: formData.date,
       timeLost: formData.time,
-      reporterName: formData.contactName,
-      reporterPhone: formData.contactPhone,
-      reporterContact: formData.contactOther,
+      reporterName: formData.contactName.trim(),
+      reporterStudentId: formData.studentId.trim(),
+      reporterPhone: formData.contactPhone.trim(),
+      reporterContact: formData.contactOther.trim(),
       status: 'searching',
       imageUrl: photos.length > 0 ? photos[0].url : ''
     } as LostItem;
@@ -157,6 +192,7 @@ export default function ReportPage() {
         itemId: newItem.id,
         itemName: formData.name,
         claimerName: formData.contactName || 'ผู้ใช้งานระบบ',
+        studentId: formData.studentId || '-',
         claimDateTime: 'เมื่อสักครู่นี้',
         contact: formData.contactPhone || 'ไม่ระบุเบอร์',
         status: 'pending',
@@ -204,6 +240,7 @@ export default function ReportPage() {
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
+            {/* ฝั่งซ้าย: รูปภาพและสถานที่ */}
             <div className="lg:col-span-5 space-y-6">
               
               <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-[#c2c6d3]/40 space-y-4">
@@ -265,6 +302,7 @@ export default function ReportPage() {
                 )}
               </div>
 
+              {/* สถานที่ */}
               <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-[#c2c6d3]/40 space-y-4 font-['Inter']">
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 font-['Plus_Jakarta_Sans']">
                   <MapPin className="w-4 h-4 text-[#00366f]" />
@@ -304,6 +342,7 @@ export default function ReportPage() {
                     <label className="block font-semibold text-gray-700 mb-1">ห้อง / ชั้น <span className="text-red-500">*</span></label>
                     <Input 
                       required
+                      error={errors.room}
                       value={formData.room}
                       onChange={(e) => setFormData({...formData, room: e.target.value})}
                       placeholder="เช่น ชั้น 2 ห้อง 204 หรือ หน้าลิฟต์"
@@ -314,14 +353,16 @@ export default function ReportPage() {
                     <label className="block font-semibold text-gray-700 mb-1">รายละเอียดสถานที่เพิ่มเติม <span className="text-red-500">*</span></label>
                     <Input 
                       required
+                      error={errors.locationDetail}
                       value={formData.locationDetail}
                       onChange={(e) => setFormData({...formData, locationDetail: e.target.value})}
-                      placeholder="เช่น วางลืมไว้บนโต๊ะแถวหลังสุด"
+                      placeholder="เช่น วางลืมไว้บนโต๊ะแถวหลังสุด ใกล้ประตูทางออก"
                     />
                   </div>
                 </div>
               </div>
 
+              {/* Live Preview Card */}
               <div className="bg-gradient-to-br from-[#eff4ff] to-white p-6 rounded-3xl border border-[#d8e4f1] space-y-3 font-['Inter']">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#00366f]">
                   <Eye className="w-4 h-4" />
@@ -339,6 +380,7 @@ export default function ReportPage() {
 
             </div>
 
+            {/* ฝั่งขวา: ข้อมูลสิ่งของและช่องทางติดต่อ */}
             <div className="lg:col-span-7 space-y-6">
               
               <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-[#c2c6d3]/40 space-y-5 font-['Inter']">
@@ -348,10 +390,15 @@ export default function ReportPage() {
                 </h3>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* ชื่อสิ่งของ */}
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">ชื่อสิ่งของ <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      ชื่อสิ่งของ <span className="text-red-500">*</span>
+                    </label>
                     <Input 
                       required
+                      error={errors.name}
                       value={formData.name}
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
                       placeholder="เช่น iPhone 15 Pro สีดำ, กระเป๋าสตางค์หนังสีน้ำตาล"
@@ -400,9 +447,12 @@ export default function ReportPage() {
                     />
                   </div>
 
+                  {/* รายละเอียดสิ่งของ */}
                   <div className="sm:col-span-2 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="block text-xs font-semibold text-gray-700">รายละเอียดและลักษณะพิเศษ <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-gray-700">
+                        รายละเอียดและลักษณะพิเศษ <span className="text-red-500">*</span>
+                      </label>
                       <div className="flex gap-1.5 flex-wrap">
                         {['มีพวงกุญแจ', 'มีรอยขีดข่วน', 'ติดสติ๊กเกอร์', 'เคสสีใส'].map((tag) => (
                           <button
@@ -416,19 +466,31 @@ export default function ReportPage() {
                         ))}
                       </div>
                     </div>
+
                     <textarea 
                       required
-                      className="w-full rounded-2xl border border-gray-200 px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#00366f] bg-white"
+                      className={`w-full rounded-2xl border px-3.5 py-2.5 text-xs focus:outline-none transition-colors ${
+                        errors.description 
+                          ? 'border-red-400 bg-red-50/30 focus:border-red-500 focus:ring-2 focus:ring-red-200' 
+                          : 'border-gray-200 bg-white focus:ring-2 focus:ring-[#00366f]'
+                      }`}
                       rows={4}
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
                       placeholder="ระบุ สี ยี่ห้อ สัญลักษณ์ รอยตำหนิ หรือเคส เพื่อให้จำแนกได้ชัดเจน..."
                     />
+                    {errors.description && (
+                      <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{errors.description}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
+                {/* ช่องทางติดต่อผู้แจ้ง */}
                 <div className="pt-4 border-t border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
                     <h3 className="text-base font-bold text-gray-900 flex items-center gap-2 font-['Plus_Jakarta_Sans']">
                       <Phone className="w-4 h-4 text-[#00366f]" />
                       <span>ช่องทางติดต่อผู้แจ้ง</span>
@@ -436,7 +498,7 @@ export default function ReportPage() {
                     <button
                       type="button"
                       onClick={handleQuickFill}
-                      className="text-xs bg-[#eff4ff] hover:bg-[#d8e4f1] text-[#00366f] px-3 py-1.5 rounded-xl font-semibold border border-[#d8e4f1] transition-colors cursor-pointer flex items-center gap-1"
+                      className="text-xs bg-[#eff4ff] hover:bg-[#d8e4f1] text-[#00366f] px-3 py-1.5 rounded-xl font-semibold border border-[#d8e4f1] transition-colors cursor-pointer flex items-center gap-1 self-start sm:self-auto"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>เติมข้อมูลโปรไฟล์ของฉันด่วน</span>
@@ -444,41 +506,73 @@ export default function ReportPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    {/* ชื่อผู้ติดต่อ */}
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">ชื่อผู้ติดต่อ <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        ชื่อผู้ติดต่อ <span className="text-red-500">*</span>
+                      </label>
                       <Input 
                         required
+                        error={errors.contactName}
                         value={formData.contactName}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/[0-9]/g, ''); // บังคับกรอกได้เฉพาะตัวหนังสือ
+                          const val = e.target.value.replace(/[0-9]/g, '');
                           setFormData({...formData, contactName: val});
                         }}
-                        placeholder="ชื่อ-นามสกุล (ตัวอักษรเท่านั้น)"
+                        placeholder="ชื่อ-นามสกุล"
                       />
                     </div>
+
+                    {/* รหัสนักศึกษา */}
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">เบอร์โทรศัพท์ <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        รหัสนักศึกษา <span className="text-red-500">*</span>
+                      </label>
+                      <Input 
+                        required
+                        error={errors.studentId}
+                        value={formData.studentId}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setFormData({...formData, studentId: val});
+                        }}
+                        placeholder="เช่น 65012345"
+                      />
+                    </div>
+
+                    {/* เบอร์โทรศัพท์ */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        เบอร์โทรศัพท์ <span className="text-red-500">*</span>
+                      </label>
                       <Input 
                         type="tel"
                         required
-                        maxLength={10}
+                        error={errors.contactPhone}
                         value={formData.contactPhone}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, ''); // บังคับกรอกได้เฉพาะตัวเลขเท่านั้น
+                          const val = e.target.value.replace(/\D/g, '');
                           setFormData({...formData, contactPhone: val});
                         }}
-                        placeholder="08XXXXXXXX (ตัวเลขเท่านั้น)"
+                        placeholder="08XXXXXXXX"
                       />
                     </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">ช่องทางอื่นๆ (Line ID, Facebook, Email) <span className="text-red-500">*</span></label>
+
+                    {/* ช่องทางอื่นๆ */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        ช่องทางอื่นๆ <span className="text-red-500">*</span>
+                      </label>
                       <Input 
                         required
+                        error={errors.contactOther}
                         value={formData.contactOther}
                         onChange={(e) => setFormData({...formData, contactOther: e.target.value})}
                         placeholder="เช่น Line ID: kuriya_t / Email: student@university.ac.th"
                       />
                     </div>
+
                   </div>
                 </div>
 
@@ -492,8 +586,12 @@ export default function ReportPage() {
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={isSubmitting}
-                    className="bg-[#00366f] hover:bg-[#004c99] text-white font-semibold px-6 shadow-xs cursor-pointer"
+                    disabled={isSubmitting || hasErrors}
+                    className={`font-semibold px-6 shadow-xs cursor-pointer ${
+                      hasErrors 
+                        ? 'bg-gray-400 cursor-not-allowed opacity-60' 
+                        : 'bg-[#00366f] hover:bg-[#004c99] text-white'
+                    }`}
                   >
                     {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกและโพสต์ข้อมูล'}
                   </Button>
@@ -536,7 +634,9 @@ export default function ReportPage() {
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-sm text-gray-900 truncate font-['Plus_Jakarta_Sans']">{createdItem.name}</p>
                 <p className="text-gray-500">{createdItem.category} • {createdItem.location}</p>
-                <p className="text-gray-400 text-[11px] mt-0.5">ผู้แจ้ง: {createdItem.reporterName} ({createdItem.reporterPhone})</p>
+                <p className="text-gray-400 text-[11px] mt-0.5">
+                  ผู้แจ้ง: {createdItem.reporterName} {createdItem.reporterStudentId ? `(${createdItem.reporterStudentId})` : ''} • โทร: {createdItem.reporterPhone}
+                </p>
               </div>
             </div>
 
@@ -556,6 +656,7 @@ export default function ReportPage() {
                     room: '',
                     locationDetail: '',
                     contactName: '',
+                    studentId: '',
                     contactPhone: '',
                     contactOther: ''
                   });

@@ -16,7 +16,8 @@ import {
   Eye,
   Sparkles,
   ShieldCheck,
-  Filter
+  Filter,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -50,6 +51,28 @@ export default function ClaimPage() {
     note: ''
   });
 
+  // Validation Limits
+  const CLAIM_LIMITS = {
+    firstName: 50,
+    lastName: 50,
+    studentId: 13,
+    department: 80,
+    contact: 50,
+    note: 300
+  };
+
+  // Validation Error Checks
+  const claimErrors = {
+    firstName: formData.firstName.length > CLAIM_LIMITS.firstName ? `ข้อความยาวเกินกำหนด (สูงสุด ${CLAIM_LIMITS.firstName} ตัวอักษร)` : '',
+    lastName: formData.lastName.length > CLAIM_LIMITS.lastName ? `ข้อความยาวเกินกำหนด (สูงสุด ${CLAIM_LIMITS.lastName} ตัวอักษร)` : '',
+    studentId: formData.studentId.length > CLAIM_LIMITS.studentId ? `รหัสนักศึกษาต้องไม่เกิน ${CLAIM_LIMITS.studentId} หลัก` : '',
+    department: formData.department.length > CLAIM_LIMITS.department ? `ข้อความยาวเกินกำหนด (สูงสุด ${CLAIM_LIMITS.department} ตัวอักษร)` : '',
+    contact: formData.contact.length > CLAIM_LIMITS.contact ? `ข้อความยาวเกินกำหนด (สูงสุด ${CLAIM_LIMITS.contact} ตัวอักษร)` : '',
+    note: formData.note.length > CLAIM_LIMITS.note ? `ข้อความยาวเกินกำหนด (สูงสุด ${CLAIM_LIMITS.note} ตัวอักษร)` : ''
+  };
+
+  const hasClaimErrors = Object.values(claimErrors).some(err => Boolean(err));
+
   useEffect(() => {
     const savedItems = localStorage.getItem('lostItems');
     if (savedItems) {
@@ -74,6 +97,11 @@ export default function ClaimPage() {
   const handleClaimSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!claimingItem) return;
+    if (hasClaimErrors) {
+      alert('กรุณาตรวจสอบข้อมูลที่กรอกเกินขีดจำกัดก่อนส่งคำขอ');
+      return;
+    }
+
     setIsSubmitting(true);
 
     setTimeout(() => {
@@ -87,12 +115,12 @@ export default function ClaimPage() {
         itemId: claimingItem.id,
         itemName: claimingItem.name,
         itemCode: claimingItem.code || '-',
-        claimerName: `${formData.firstName} ${formData.lastName}`,
-        studentId: formData.studentId,
-        department: formData.department,
+        claimerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+        studentId: formData.studentId.trim(),
+        department: formData.department.trim(),
         claimDateTime: `${formData.claimDate} ${formData.claimTime}`,
-        contact: formData.contact,
-        note: formData.note,
+        contact: formData.contact.trim(),
+        note: formData.note.trim(),
         requestDate: new Date().toISOString(),
         status: 'pending'
       };
@@ -144,7 +172,7 @@ export default function ClaimPage() {
           </button>
         </div>
 
-        {/* Hero Banner ดีไซน์พรีเมียม */}
+        {/* Hero Banner */}
         <div className="relative overflow-hidden bg-gradient-to-r from-[#00366f] via-[#004c99] to-[#1e3a8a] rounded-3xl p-6 sm:p-10 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
           <div className="relative z-10 max-w-2xl space-y-3">
@@ -185,7 +213,7 @@ export default function ClaimPage() {
           </div>
         )}
 
-        {/* Filter Controls Box แบบกระจกโมเดิร์น */}
+        {/* Filter Controls Box */}
         <div className="bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-xs border border-[#c2c6d3]/40 space-y-4 font-['Inter']">
           <div className="flex items-center gap-2 pb-2 border-b border-gray-100 text-xs font-bold text-gray-700">
             <Filter className="w-4 h-4 text-[#00366f]" />
@@ -324,7 +352,7 @@ export default function ClaimPage() {
 
       </div>
 
-      {/* Modal ฟอร์มยืนยันตัวตนรับของคืนดีไซน์ใหม่ */}
+      {/* Modal ฟอร์มยืนยันตัวตนรับของคืน */}
       <Modal 
         isOpen={!!claimingItem} 
         onClose={() => setClaimingItem(null)}
@@ -342,8 +370,12 @@ export default function ClaimPage() {
                 <label className="block font-semibold text-gray-700 mb-1">ชื่อจริง <span className="text-red-500">*</span></label>
                 <Input 
                   required
+                  error={claimErrors.firstName}
                   value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[0-9]/g, '');
+                    setFormData({ ...formData, firstName: val });
+                  }}
                   placeholder="กรอกชื่อจริง"
                 />
               </div>
@@ -351,8 +383,12 @@ export default function ClaimPage() {
                 <label className="block font-semibold text-gray-700 mb-1">นามสกุล <span className="text-red-500">*</span></label>
                 <Input 
                   required
+                  error={claimErrors.lastName}
                   value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[0-9]/g, '');
+                    setFormData({ ...formData, lastName: val });
+                  }}
                   placeholder="กรอกนามสกุล"
                 />
               </div>
@@ -363,8 +399,12 @@ export default function ClaimPage() {
                 <label className="block font-semibold text-gray-700 mb-1">รหัสนักศึกษา <span className="text-red-500">*</span></label>
                 <Input 
                   required
+                  error={claimErrors.studentId}
                   value={formData.studentId}
-                  onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setFormData({ ...formData, studentId: val });
+                  }}
                   placeholder="เช่น 670410XXXX"
                 />
               </div>
@@ -372,6 +412,7 @@ export default function ClaimPage() {
                 <label className="block font-semibold text-gray-700 mb-1">สังกัด / คณะ <span className="text-red-500">*</span></label>
                 <Input 
                   required
+                  error={claimErrors.department}
                   value={formData.department}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                   placeholder="เช่น คณะวิทยาศาสตร์"
@@ -414,6 +455,7 @@ export default function ClaimPage() {
               <label className="block font-semibold text-gray-700 mb-1">ช่องทางติดต่อ (Line ID / เบอร์โทร) <span className="text-red-500">*</span></label>
               <Input 
                 required
+                error={claimErrors.contact}
                 value={formData.contact}
                 onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
                 placeholder="เช่น 0812345678 หรือ Line: aom_123"
@@ -424,11 +466,21 @@ export default function ClaimPage() {
               <label className="block font-semibold text-gray-700 mb-1">หมายเหตุ / จุดสังเกตยืนยันความเป็นเจ้าของ</label>
               <textarea 
                 rows={2}
-                className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#00366f]/30 bg-gray-50/50"
+                className={`w-full rounded-2xl border px-3.5 py-2 text-xs focus:outline-none transition-colors ${
+                  claimErrors.note
+                    ? 'border-red-400 bg-red-50/30 focus:border-red-500 focus:ring-2 focus:ring-red-200'
+                    : 'border-gray-200 bg-gray-50/50 focus:ring-2 focus:ring-[#00366f]/30'
+                }`}
                 value={formData.note}
                 onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                 placeholder="ระบุตำหนิพิเศษหรือรายละเอียดรหัสผ่านเพื่อยืนยันตัวตน..."
               />
+              {claimErrors.note && (
+                <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{claimErrors.note}</span>
+                </p>
+              )}
             </div>
 
             <div className="flex justify-end gap-2.5 pt-4 border-t">
@@ -440,9 +492,13 @@ export default function ClaimPage() {
                 ยกเลิก
               </Button>
               <Button 
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs cursor-pointer"
+                type="submit" 
+                disabled={isSubmitting || hasClaimErrors}
+                className={`font-semibold shadow-xs cursor-pointer ${
+                  hasClaimErrors
+                    ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                }`}
               >
                 {isSubmitting ? 'กำลังส่งคำขอ...' : 'ยืนยันและส่งคำขอให้แอดมิน'}
               </Button>
