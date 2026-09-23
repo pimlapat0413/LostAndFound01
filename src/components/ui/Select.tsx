@@ -71,10 +71,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             disabled={disabled}
             value={value}
             defaultValue={defaultValue}
-            className={`w-full appearance-none rounded-lg border text-sm transition-colors duration-150 focus:outline-none focus:ring-2 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed ${
+            className={`w-full appearance-none rounded-xl border text-sm transition-colors duration-150 focus:outline-none focus:ring-2 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed ${
               error
                 ? 'border-red-400 bg-red-50/30 text-gray-900 focus:border-red-500 focus:ring-red-200'
-                : 'border-gray-300 bg-white hover:border-gray-400 focus:border-blue-600 focus:ring-blue-100 text-gray-900'
+                : 'border-line bg-white hover:border-slate-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-50 text-gray-900'
             } ${icon ? 'pl-10' : 'pl-3.5'} pr-10 py-2.5 cursor-pointer ${
               hasNoSelectedValue ? 'text-gray-400' : 'text-gray-900'
             } ${className}`}

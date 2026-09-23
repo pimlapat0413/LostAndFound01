@@ -39,9 +39,9 @@ const variantStyles: Record<
     pulse: 'bg-emerald-400',
   },
   returned: {
-    container: 'bg-blue-50 text-blue-700 border-blue-200/80',
-    dot: 'bg-blue-600',
-    pulse: 'bg-blue-400',
+    container: 'bg-brand-50 text-brand-700 border-brand-100',
+    dot: 'bg-brand-600',
+    pulse: 'bg-brand-500',
   },
   pending: {
     container: 'bg-gray-100 text-gray-700 border-gray-200',

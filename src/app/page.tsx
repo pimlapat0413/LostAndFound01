@@ -2,322 +2,256 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  FileText, 
-  Search, 
-  PackageCheck, 
-  Users, 
-  Package, 
-  ArrowRight, 
-  TrendingUp,
+import { useRouter } from 'next/navigation';
+import {
+  Search,
+  Package,
+  ArrowRight,
   MapPin,
   Calendar,
+  FilePlus2,
+  HandHeart,
   Sparkles,
-  ShieldCheck
+  KeyRound,
+  PackageSearch,
+  PackageCheck,
+  Hourglass,
+  Smartphone,
+  BookOpen,
+  Wallet,
+  PenTool,
+  Key,
+  Shirt,
+  MoreHorizontal,
+  LucideIcon
 } from 'lucide-react';
+import Badge from '@/components/ui/Badge';
 import { LostItem } from '@/types';
+import { categories } from '@/data/mockData';
+import { getItems, getReportType } from '@/lib/storage';
 
-const getStatusBadge = (status: LostItem['status']) => {
-  switch (status) {
-    case 'searching':
-      return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200 font-['Inter']">กำลังค้นหา</span>;
-    case 'found':
-      return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 font-['Inter']">พบแล้ว</span>;
-    case 'returned':
-      return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-[#00366f] border border-blue-200 font-['Inter']">รับคืนแล้ว</span>;
-    default:
-      return null;
-  }
+// ชื่อไอคอนใน mockData.categories -> คอมโพเนนต์ lucide
+const categoryIcons: Record<string, LucideIcon> = {
+  Smartphone, BookOpen, Wallet, PenTool, Key, Shirt, MoreHorizontal
 };
 
+const statusBadge = (status: LostItem['status']) =>
+  status === 'searching' ? <Badge variant="searching" size="sm">กำลังค้นหา</Badge>
+    : status === 'found' ? <Badge variant="found" size="sm">พบแล้ว</Badge>
+      : <Badge variant="returned" size="sm">รับคืนแล้ว</Badge>;
+
+const steps = [
+  { icon: FilePlus2, title: 'แจ้งเข้าระบบ', desc: 'บอกรายละเอียด แนบรูป และปักหมุดตำแหน่งบนแผนที่ ใช้เวลาไม่ถึง 2 นาที' },
+  { icon: Sparkles, title: 'ระบบจับคู่ให้อัตโนมัติ', desc: 'เทียบหมวดหมู่ คำอธิบาย ระยะทาง และวันที่ แล้วแจ้งเตือนเมื่อพบรายการที่อาจตรงกัน' },
+  { icon: KeyRound, title: 'ยืนยันแล้วรับของ', desc: 'ตอบคำถามยืนยันเจ้าของ รับรหัสส่งมอบ 6 หลัก แล้วนัดรับของได้อย่างปลอดภัย' },
+];
+
 export default function DashboardPage() {
+  const router = useRouter();
   const [items, setItems] = useState<LostItem[]>([]);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
-    const savedItems = localStorage.getItem('lostItems');
-    if (savedItems) {
-      try {
-        setItems(JSON.parse(savedItems));
-      } catch (e) {
-        console.error("Failed to parse items", e);
-        setItems([]);
-      }
-    } else {
-      setItems([]);
-    }
+    setItems(getItems());
   }, []);
 
-  const computedStats = {
-    totalItems: items.length,
-    searching: items.filter(i => String(i.status).includes('searching')).length,
-    returned: items.filter(i => String(i.status).includes('returned')).length,
-    totalUsers: 236
-  };
-
+  const total = items.length;
+  const searching = items.filter(i => i.status === 'searching').length;
+  const found = items.filter(i => i.status === 'found').length;
+  const returned = items.filter(i => i.status === 'returned').length;
+  const successRate = total > 0 ? Math.round((returned / total) * 100) : 0;
   const recentItems = items.slice(0, 4);
 
+  const stats = [
+    { label: 'รายการทั้งหมด', value: total, icon: PackageSearch, tone: 'bg-brand-50 text-brand-600' },
+    { label: 'กำลังตามหา', value: searching, icon: Hourglass, tone: 'bg-amber-50 text-amber-600' },
+    { label: 'มีคนเก็บได้', value: found, icon: HandHeart, tone: 'bg-emerald-50 text-emerald-600' },
+    { label: 'ส่งคืนเจ้าของแล้ว', value: returned, icon: PackageCheck, tone: 'bg-violet-50 text-violet-600' },
+  ];
+
   return (
-    <div className="min-h-screen text-[#0d1c2f] font-sans pb-16 relative overflow-x-hidden">
-      
-      
+    <div className="space-y-10 pb-8">
 
-      {/* เนื้อหาภายในหน้าเว็บทั้งหมด */}
-      <div className="p-6 md:p-10 max-w-[1280px] mx-auto space-y-10 relative z-10">
-        
-        {/* Hero Banner */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-[#00366f] via-[#004c99] to-[#1e3a8a] text-white p-8 md:p-10 rounded-3xl shadow-xl flex flex-col justify-center gap-4">
-          <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="space-y-3 relative z-10 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white text-xs font-semibold tracking-wide uppercase border border-white/20">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              Institutional Academic Portal
-            </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight font-['Inter'] leading-tight">
-  Missing Items System
-</h1>
-            <p className="text-blue-100 font-['Inter'] text-sm md:text-base leading-relaxed opacity-90">
-              ระบบสารสนเทศอัจฉริยะสำหรับการบริหารจัดการ ติดตาม และส่งมอบคืนทรัพย์สินสูญหายภายในสถาบันการศึกษาอย่างโปร่งใสและมีประสิทธิภาพ
-            </p>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Link href="/items" className="block group">
-            <div className="relative overflow-hidden bg-white/95 backdrop-blur-sm p-6 rounded-2xl border border-[#c2c6d3]/40 shadow-sm hover:shadow-xl hover:border-[#00366f] transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#00366f]" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-[#737782] uppercase tracking-wider font-['Inter']">รายการทั้งหมด</p>
-<h3 className="text-3xl font-black text-[#0d1c2f] mt-2 font-mono tracking-tight group-hover:text-[#00366f] transition-colors">{computedStats.totalItems}</h3>                </div>
-                <div className="w-12 h-12 rounded-2xl bg-[#eff4ff] flex items-center justify-center text-[#00366f] group-hover:bg-[#00366f] group-hover:text-white transition-all duration-300 shadow-xs">
-                  <FileText className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between text-[11px] text-[#737782] font-['Inter'] pt-3 border-t border-[#f0f3fa]">
-                <span><strong className="text-[#00366f]">Active</strong> ข้อมูลในระบบ</span>
-                <span className="text-[#00366f] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">ดูทั้งหมด →</span>
-              </div>
-            </div>
-          </Link>
-
-          <Link href="/items" className="block group">
-            <div className="relative overflow-hidden bg-white/95 backdrop-blur-sm p-6 rounded-2xl border border-[#c2c6d3]/40 shadow-sm hover:shadow-xl hover:border-amber-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-amber-500" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-[#737782] uppercase tracking-wider font-['Inter']">กำลังค้นหา</p>
-<h3 className="text-3xl font-black text-[#0d1c2f] mt-2 font-mono tracking-tight group-hover:text-amber-600 transition-colors">{computedStats.searching}</h3>                </div>
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all duration-300 shadow-xs">
-                  <Search className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between text-[11px] text-[#737782] font-['Inter'] pt-3 border-t border-[#f0f3fa]">
-                <span><strong className="text-amber-600">Pending</strong> รอเจ้าของมารับ</span>
-                <span className="text-amber-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">ตรวจสอบ →</span>
-              </div>
-            </div>
-          </Link>
-
-          <Link href="/items" className="block group">
-            <div className="relative overflow-hidden bg-white/95 backdrop-blur-sm p-6 rounded-2xl border border-[#c2c6d3]/40 shadow-sm hover:shadow-xl hover:border-emerald-500 transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-[#737782] uppercase tracking-wider font-['Inter']">รับคืนแล้ว</p>
-<h3 className="text-3xl font-black text-[#0d1c2f] mt-2 font-mono tracking-tight group-hover:text-emerald-600 transition-colors">{computedStats.returned}</h3>                </div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 shadow-xs">
-                  <PackageCheck className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between text-[11px] text-[#737782] font-['Inter'] pt-3 border-t border-[#f0f3fa]">
-                <span><strong className="text-emerald-700">Completed</strong> ส่งคืนสำเร็จ</span>
-                <span className="text-emerald-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">ดูประวัติ →</span>
-              </div>
-            </div>
-          </Link>
-
-          <div className="relative overflow-hidden bg-white/95 backdrop-blur-sm p-6 rounded-2xl border border-[#c2c6d3]/40 shadow-sm hover:shadow-xl hover:border-emerald-500 transition-all duration-300 group">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600" />
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-[#737782] uppercase tracking-wider font-['Inter']">อัตราการตามหาสำเร็จ</p>
-                <h3 className="text-3xl font-black text-[#0d1c2f] mt-2 font-mono tracking-tight group-hover:text-emerald-600 transition-colors">
-                  {computedStats.totalItems > 0 
-                    ? Math.round((computedStats.returned / computedStats.totalItems) * 100) 
-                    : 0}%
-                </h3>
-              </div>
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 shadow-xs">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-[11px] text-[#737782] font-['Inter'] pt-3 border-t border-[#f0f3fa]">
-              <span><strong className="text-emerald-700">Verified</strong> ส่งคืนเจ้าของแล้ว</span>
-              <span className="text-emerald-600 font-semibold text-[10px] bg-emerald-50 px-2 py-0.5 rounded-full">High Success</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Link href="/report" className="block group">
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#f0f4ff]/95 via-[#e2ecff]/95 to-[#d4e4fc]/95 backdrop-blur-sm rounded-3xl p-8 text-[#00366f] shadow-sm hover:shadow-xl transition-all duration-300 flex items-center justify-between gap-6 hover:-translate-y-1.5 border border-[#c2c6d3]/40">
-              <div className="space-y-3 relative z-10 flex-1">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 text-[#00366f] text-[11px] font-bold uppercase tracking-wider backdrop-blur-md border border-[#00366f]/10 shadow-xs">
-                  <FileText className="w-3.5 h-3.5 text-[#00366f]" />
-                  <span>Quick Report</span>
-                </div>
-                <div>
-                  <h3 className="text-xl md:text-2xl font-bold tracking-tight font-['Plus_Jakarta_Sans'] text-[#0d1c2f]">
-                    แจ้งของหาย
-                  </h3>
-                  <p className="text-[#424751] text-xs sm:text-sm font-['Inter'] leading-relaxed mt-1 max-w-md">
-                    บันทึกรายการสิ่งของที่สูญหายเข้าสู่ระบบ
-                  </p>
-                </div>
-              </div>
-              <div className="w-14 h-14 rounded-2xl bg-white text-[#00366f] flex items-center justify-center shrink-0 group-hover:bg-[#00366f] group-hover:text-white group-hover:scale-110 transition-all duration-300 shadow-md border border-[#c2c6d3]/40 relative z-10">
-                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-          </Link>
-
-          <Link href="/items" className="block group">
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#f8f9fc]/95 via-[#f1f3f9]/95 to-[#e4e9f2]/95 backdrop-blur-sm rounded-3xl p-8 text-[#0d1c2f] shadow-sm hover:shadow-xl transition-all duration-300 flex items-center justify-between gap-6 hover:-translate-y-1.5 border border-[#c2c6d3]/40">
-              <div className="space-y-3 relative z-10 flex-1">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 text-[#424751] text-[11px] font-bold uppercase tracking-wider backdrop-blur-md border border-[#c2c6d3]/30 shadow-xs">
-                  <Search className="w-3.5 h-3.5 text-[#00366f]" />
-                  <span>Database Search</span>
-                </div>
-                <div>
-                  <h3 className="text-xl md:text-2xl font-bold tracking-tight font-['Plus_Jakarta_Sans'] text-[#0d1c2f]">
-                    ค้นหาของหาย
-                  </h3>
-                  <p className="text-[#424751] text-xs sm:text-sm font-['Inter'] leading-relaxed mt-1 max-w-md">
-                    ตรวจสอบสิ่งของที่มีการแจ้งพบหรือสูญหายในระบบ
-                  </p>
-                </div>
-              </div>
-              <div className="w-14 h-14 rounded-2xl bg-white text-[#00366f] flex items-center justify-center shrink-0 group-hover:bg-[#00366f] group-hover:text-white group-hover:scale-110 transition-all duration-300 shadow-md border border-[#c2c6d3]/40 relative z-10">
-                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-          </Link>
-        </div>
-
-        {/* Recent Items */}
-        <div className="space-y-6 pt-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-[#0d1c2f] flex items-center gap-2.5 font-['Plus_Jakarta_Sans']">
-              <div className="p-2.5 bg-[#d8e4f1] rounded-xl text-[#00366f] shadow-xs">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              รายการล่าสุดในระบบ
-            </h2>
-            <Link href="/items" className="text-xs sm:text-sm text-[#00366f] hover:text-[#004c99] font-bold flex items-center gap-1 group font-['Inter']">
-              ดูทั้งหมด
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-          
-          {recentItems.length === 0 ? (
-            <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-10 text-center border border-[#c2c6d3]/40 shadow-xs">
-              <Package className="w-12 h-12 text-[#737782] mx-auto mb-3 opacity-50" />
-              <p className="text-sm font-semibold text-[#0d1c2f] font-['Plus_Jakarta_Sans']">ยังไม่มีรายการสิ่งของในระบบ</p>
-              <p className="text-xs text-[#737782] mt-1 font-['Inter']">คุณสามารถเพิ่มรายการใหม่ได้จากเมนูแจ้งของหาย</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {recentItems.map((item) => (
-                <Link key={item.id} href={`/items/${item.id}`} className="group block">
-                  <div className="bg-white/95 backdrop-blur-sm rounded-2xl border border-[#c2c6d3]/40 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="aspect-video bg-[#eff4ff] flex items-center justify-center relative overflow-hidden">
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                      ) : (
-                        <Package className="w-12 h-12 text-[#737782] group-hover:scale-110 transition-transform duration-300" />
-                      )}
-                      <div className="absolute top-3 right-3 shadow-xs">
-                        {getStatusBadge(item.status)}
-                      </div>
-                    </div>
-
-                    <div className="p-5 space-y-3 font-['Inter']">
-                      <h3 className="font-bold text-[#0d1c2f] truncate group-hover:text-[#00366f] transition-colors text-base font-['Plus_Jakarta_Sans']">
-                        {item.name}
-                      </h3>
-                      <div className="space-y-2 pt-1 border-t border-[#f0f3fa]">
-                        <div className="flex items-start gap-2 text-xs text-[#424751]">
-                          <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#00366f]" />
-                          <span className="line-clamp-1">{item.location}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-[#737782]">
-                          <Calendar className="w-4 h-4 flex-shrink-0 text-[#737782]" />
-                          <span>{item.dateLost ? new Date(item.dateLost).toLocaleDateString('th-TH') : 'ไม่ระบุวันที่'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Categories */}
-        <div className="space-y-6 pt-8 border-t border-[#c2c6d3]/40">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-xl md:text-2xl font-bold text-[#0d1c2f] font-['Plus_Jakarta_Sans']">
-                หมวดหมู่ยอดนิยม
-              </h2>
-              <p className="text-xs text-[#737782] font-['Inter'] mt-0.5">
-                เลือกหมวดหมู่สิ่งของเพื่อคัดกรองดูข้อมูลจริงในระบบทันที
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-[28px] bg-brand-gradient text-white">
+        <div className="absolute inset-0 bg-dots pointer-events-none" />
+        <div className="absolute -right-24 -top-24 w-80 h-80 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        <div className="relative grid lg:grid-cols-[1.4fr_1fr] gap-8 p-7 sm:p-10 lg:p-12">
+          <div className="space-y-6">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/25 backdrop-blur">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              ศูนย์รวมของหาย–ของที่พบ ภายในมหาวิทยาลัย
+            </span>
+            <div className="space-y-3">
+              <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-semibold leading-[1.35]">
+                ทำของหาย หรือเก็บของได้?<br />
+                <span className="text-amber-300">แจ้งที่นี่</span> เราช่วยตามหาให้
+              </h1>
+              <p className="text-white/80 text-sm sm:text-base max-w-xl leading-relaxed">
+                แจ้งได้ในไม่กี่นาที ระบบจะจับคู่ของหายกับของที่มีคนพบให้อัตโนมัติ พร้อมยืนยันตัวตนก่อนส่งมอบทุกครั้ง
               </p>
             </div>
-            <Link 
-              href="/items" 
-              className="text-xs font-semibold text-[#00366f] hover:text-[#004c99] transition-colors font-['Inter'] flex items-center gap-1 self-start sm:self-auto"
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                router.push(query.trim() ? `/items?q=${encodeURIComponent(query.trim())}` : '/items');
+              }}
+              className="flex max-w-xl items-center gap-2 rounded-2xl bg-white p-1.5 shadow-lift"
             >
-              ดูทั้งหมด →
-            </Link>
+              <Search className="ml-3 w-5 h-5 text-slate-400 shrink-0" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="ค้นหา เช่น หูฟัง, บัตรนักศึกษา, กุญแจ..."
+                className="flex-1 min-w-0 bg-transparent px-1 py-2 text-sm text-ink placeholder:text-slate-400 focus:outline-none"
+              />
+              <button type="submit" className="rounded-xl bg-brand-600 hover:bg-brand-700 px-4 sm:px-5 py-2.5 text-sm font-semibold text-white transition-colors">
+                ค้นหา
+              </button>
+            </form>
+
+            <div className="flex flex-wrap gap-3">
+              <Link href="/report" className="inline-flex items-center gap-2 rounded-xl bg-white/15 hover:bg-white/25 px-4 py-2.5 text-sm font-semibold ring-1 ring-white/30 transition-colors">
+                <FilePlus2 className="w-4 h-4" /> แจ้งของหาย
+              </Link>
+              <Link href="/report?type=found" className="inline-flex items-center gap-2 rounded-xl bg-white/15 hover:bg-white/25 px-4 py-2.5 text-sm font-semibold ring-1 ring-white/30 transition-colors">
+                <HandHeart className="w-4 h-4" /> ฉันเก็บของได้
+              </Link>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {[
-              { name: 'กระเป๋าและกระเป๋าสตางค์', shortName: 'กระเป๋าสตางค์', icon: FileText },
-              { name: 'โทรศัพท์มือถือและแท็บเล็ต', shortName: 'โทรศัพท์มือถือ', icon: Search },
-              { name: 'กุญแจ', shortName: 'กุญแจ', icon: PackageCheck },
-              { name: 'บัตรประจำตัวและเอกสาร', shortName: 'บัตรประจำตัว', icon: Users },
-              { name: 'อุปกรณ์ไอที', shortName: 'อุปกรณ์ไอที', icon: Package },
-              { name: 'เครื่องประดับและนาฬิกา', shortName: 'เครื่องประดับ', icon: Sparkles },
-            ].map((cat, index) => {
-              const IconComponent = cat.icon;
-
-              return (
-                <Link 
-                  key={index} 
-                  href={`/items?category=${encodeURIComponent(cat.shortName)}`}
-                  className="group relative bg-white/95 backdrop-blur-sm rounded-3xl p-6 border border-[#c2c6d3]/40 shadow-sm hover:shadow-xl hover:border-[#00366f] transition-all duration-300 hover:-translate-y-1.5 flex flex-col items-center text-center space-y-3"
-                >
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-[#00366f]/5 rounded-full blur-xl group-hover:bg-[#00366f]/15 transition-all pointer-events-none" />
-                  <div className="w-14 h-14 rounded-2xl bg-[#eff4ff] text-[#00366f] flex items-center justify-center group-hover:bg-[#00366f] group-hover:text-white group-hover:scale-110 transition-all duration-300 shadow-xs relative z-10">
-                    <IconComponent className="w-6 h-6" />
-                  </div>
-                  <div className="relative z-10 w-full pt-1">
-                    <h3 className="text-xs sm:text-sm font-bold text-[#0d1c2f] group-hover:text-[#00366f] transition-colors font-['Plus_Jakarta_Sans'] truncate">
-                      {cat.shortName}
-                    </h3>
-                  </div>
-                  <div className="absolute bottom-0 left-6 right-6 h-1 bg-transparent group-hover:bg-[#00366f] rounded-full transition-all" />
-                </Link>
-              );
-            })}
+          {/* การ์ดสรุปอัตราส่งคืน */}
+          <div className="hidden lg:flex items-center justify-center">
+            <div className="w-full max-w-xs rounded-3xl bg-white/10 p-6 ring-1 ring-white/25 backdrop-blur-md space-y-5">
+              <div>
+                <p className="text-sm text-white/75">อัตราการส่งคืนสำเร็จ</p>
+                <p className="font-display text-6xl font-semibold mt-1">{successRate}<span className="text-3xl text-white/70">%</span></p>
+              </div>
+              <div className="h-2 rounded-full bg-white/20 overflow-hidden">
+                <div className="h-full rounded-full bg-amber-300" style={{ width: `${successRate}%` }} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <p className="text-white/70 text-xs">ส่งคืนแล้ว</p>
+                  <p className="font-display text-2xl font-semibold">{returned}</p>
+                </div>
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <p className="text-white/70 text-xs">รอเจ้าของ</p>
+                  <p className="font-display text-2xl font-semibold">{searching + found}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-      </div>
+      {/* Stats */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map(({ label, value, icon: Icon, tone }) => (
+          <Link key={label} href="/items" className="group rounded-2xl bg-white p-5 border border-line shadow-card hover:border-brand-200 hover:-translate-y-0.5 transition-all">
+            <div className="flex items-center justify-between">
+              <span className={`w-10 h-10 rounded-xl flex items-center justify-center ${tone}`}>
+                <Icon className="w-5 h-5" />
+              </span>
+              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <p className="mt-4 font-display text-3xl font-semibold text-ink">{value}</p>
+            <p className="text-sm text-slate-500">{label}</p>
+          </Link>
+        ))}
+      </section>
+
+      {/* How it works */}
+      <section className="space-y-5">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-semibold">ใช้งานง่ายใน 3 ขั้นตอน</h2>
+          <p className="text-sm text-slate-500 mt-1">ตั้งแต่แจ้งจนได้ของคืน ทุกขั้นตอนติดตามได้ในหน้ารายการของฉัน</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          {steps.map(({ icon: Icon, title, desc }, idx) => (
+            <div key={title} className="relative rounded-2xl bg-white p-6 border border-line shadow-card">
+              <span className="absolute top-5 right-5 font-display text-4xl font-semibold text-slate-100">0{idx + 1}</span>
+              <span className="w-11 h-11 rounded-xl bg-brand-gradient text-white flex items-center justify-center shadow-lift">
+                <Icon className="w-5 h-5" />
+              </span>
+              <h3 className="mt-4 text-base font-semibold">{title}</h3>
+              <p className="mt-1 text-sm text-slate-500 leading-relaxed">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Recent Items */}
+      <section className="space-y-5">
+        <div className="flex items-end justify-between">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-semibold">รายการล่าสุด</h2>
+            <p className="text-sm text-slate-500 mt-1">ของที่เพิ่งมีการแจ้งเข้ามาในระบบ</p>
+          </div>
+          <Link href="/items" className="text-sm text-brand-600 hover:text-brand-700 font-semibold flex items-center gap-1 group">
+            ดูทั้งหมด <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        </div>
+
+        {recentItems.length === 0 ? (
+          <div className="rounded-2xl bg-white p-10 text-center border border-dashed border-line">
+            <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-ink">ยังไม่มีรายการในระบบ</p>
+            <p className="text-xs text-slate-500 mt-1">เริ่มต้นแจ้งรายการแรกได้จากปุ่ม &quot;แจ้งของหาย&quot;</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {recentItems.map((item) => (
+              <Link key={item.id} href={`/items/${item.id}`} className="group rounded-2xl bg-white border border-line shadow-card overflow-hidden hover:-translate-y-1 hover:shadow-lift transition-all">
+                <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"><Package className="w-10 h-10 text-slate-300" /></div>
+                  )}
+                  <div className="absolute top-3 left-3">{statusBadge(item.status)}</div>
+                </div>
+                <div className="p-4 space-y-2">
+                  <p className="text-[11px] font-semibold text-brand-600">{getReportType(item) === 'found' ? 'มีคนเก็บได้' : 'แจ้งของหาย'} • {item.category}</p>
+                  <h3 className="font-semibold text-ink truncate group-hover:text-brand-600 transition-colors">{item.name}</h3>
+                  <div className="space-y-1 text-xs text-slate-500">
+                    <p className="flex items-center gap-1.5 truncate"><MapPin className="w-3.5 h-3.5 shrink-0" />{item.location}</p>
+                    <p className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 shrink-0" />{item.dateLost ? new Date(item.dateLost).toLocaleDateString('th-TH') : 'ไม่ระบุวันที่'}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Categories */}
+      <section className="space-y-5">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-semibold">เลือกดูตามหมวดหมู่</h2>
+          <p className="text-sm text-slate-500 mt-1">กดเพื่อกรองรายการในหมวดนั้นทันที</p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {categories.map((cat) => {
+            const Icon = categoryIcons[cat.icon] || Package;
+            const count = items.filter(i => i.category === cat.name).length;
+            return (
+              <Link
+                key={cat.id}
+                href={`/items?category=${encodeURIComponent(cat.name)}`}
+                className="group rounded-2xl bg-white p-4 border border-line shadow-card hover:border-brand-200 hover:-translate-y-0.5 transition-all flex flex-col items-center text-center gap-2"
+              >
+                <span className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center group-hover:bg-brand-600 group-hover:text-white transition-colors">
+                  <Icon className="w-5 h-5" />
+                </span>
+                <span className="text-xs sm:text-sm font-semibold text-ink leading-snug">{cat.name}</span>
+                <span className="text-[11px] text-slate-400">{count} รายการ</span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

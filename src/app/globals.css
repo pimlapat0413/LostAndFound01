@@ -1,26 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html {
-  font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-surface text-ink font-sans;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+  ::selection {
+    @apply bg-brand-100 text-brand-700;
+  }
+  :focus-visible {
+    outline: 2px solid #3d5ff0;
+    outline-offset: 2px;
+  }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 3px;
+  background: #cbd2df;
+  border-radius: 999px;
+  border: 2px solid #f5f7fb;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #9aa4b8;
 }
 
 /* Animation */
@@ -30,6 +45,13 @@ html {
   }
   .animate-slide-in {
     animation: slideIn 0.3s ease-out;
+  }
+  .bg-brand-gradient {
+    background-image: linear-gradient(135deg, #2346d8 0%, #4a4de6 55%, #6d3ee8 100%);
+  }
+  .bg-dots {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+    background-size: 18px 18px;
   }
 }
 
@@ -41,4 +63,15 @@ html {
 @keyframes slideIn {
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }
+}
+
+/* select แบบ native (ที่ไม่ได้ใช้คอมโพเนนต์ Select) ให้หน้าตาเหมือนช่องกรอกอื่น */
+@layer base {
+  select:not(.appearance-none):not([multiple]) {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2.25rem;
+  }
 }

@@ -24,20 +24,34 @@ export interface LostItem {
   reporterContact: string; // Line ID etc
   reporterAvatar: string;
   createdAt: string;
+  pinX?: number; // ละติจูดของหมุดบนแผนที่ (Leaflet)
+  pinY?: number; // ลองจิจูดของหมุดบนแผนที่ (Leaflet)
+  reportType?: 'lost' | 'found'; // ไม่ระบุ = 'lost' (ข้อมูลเก่า)
+  urgency?: 'normal' | 'high';
+  secretQuestion?: string; // คำถามยืนยันเจ้าของ (ไม่แสดงสาธารณะ)
+  secretAnswer?: string;
 }
 
 export interface ClaimRequest {
-  id: string;
+  requestId: string;
   itemId: string;
+  itemName: string;
+  itemCode: string;
   claimerName: string;
-  claimerStudentId: string;
-  claimerContact: string;
-  meetingPlace: string;
-  meetingPlaceDetail: string;
-  meetingDate: string;
-  meetingTime: string;
+  studentId: string;
+  department: string;
+  claimDateTime: string;
+  claimLocation: string;
+  contact: string;
   note: string;
-  status: 'pending' | 'approved' | 'completed';
+  requestDate: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  secretAnswerGiven?: string;
+  handoverCode?: string; // รหัส 6 หลักที่ออกให้เมื่ออนุมัติ
+  approvedAt?: string;
+  handedOverAt?: string;
+  handedOverBy?: string;
+  isNewItemReport?: boolean; // ข้อมูลเก่าที่ถูกบันทึกปนมาในรายการคำขอ
 }
 
 export interface User {

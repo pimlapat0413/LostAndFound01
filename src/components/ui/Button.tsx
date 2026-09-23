@@ -18,19 +18,19 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 focus-visible:ring-blue-500 shadow-sm disabled:bg-blue-300 disabled:cursor-not-allowed',
+    'bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-700 focus-visible:ring-brand-500 shadow-sm shadow-brand-600/20 disabled:bg-brand-200 disabled:cursor-not-allowed',
   secondary:
-    'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 active:bg-gray-100 focus-visible:ring-blue-500 shadow-sm disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed',
+    'bg-white text-slate-700 border border-line hover:bg-slate-50 active:bg-slate-100 focus-visible:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed',
   danger:
     'bg-red-500 text-white hover:bg-red-600 active:bg-red-700 focus-visible:ring-red-500 shadow-sm disabled:bg-red-300 disabled:cursor-not-allowed',
   ghost:
-    'bg-transparent text-gray-700 hover:bg-gray-100 active:bg-gray-200 focus-visible:ring-blue-500 disabled:text-gray-300 disabled:bg-transparent disabled:cursor-not-allowed',
+    'bg-transparent text-gray-700 hover:bg-gray-100 active:bg-gray-200 focus-visible:ring-brand-500 disabled:text-gray-300 disabled:bg-transparent disabled:cursor-not-allowed',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs font-medium rounded-md gap-1.5',
-  md: 'px-4 py-2 text-sm font-medium rounded-lg gap-2',
-  lg: 'px-5 py-2.5 text-base font-semibold rounded-lg gap-2.5',
+  sm: 'px-3 py-1.5 text-xs font-semibold rounded-lg gap-1.5',
+  md: 'px-4 py-2.5 text-sm font-semibold rounded-xl gap-2',
+  lg: 'px-6 py-3 text-base font-semibold rounded-xl gap-2.5',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

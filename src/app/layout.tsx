@@ -1,23 +1,24 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
+import { Anuphan, Prompt } from 'next/font/google';
 import './globals.css';
 import Sidebar from '@/components/layout/Sidebar';
 import TopBar from '@/components/layout/TopBar';
 import { RoleProvider } from '@/context/RoleContext';
 
-// ==========================================
-// 1. FONT CONFIGURATION (Academic Clarity Typography)
-// ==========================================
-const inter = Inter({ 
-  subsets: ['latin'],
-  variable: '--font-inter',
+// ฟอนต์เนื้อหา: Anuphan (ไทย/อังกฤษ อ่านง่าย ทันสมัย) / ฟอนต์หัวข้อ: Prompt
+const bodyFont = Anuphan({
+  subsets: ['thai', 'latin'],
+  variable: '--font-body',
+  display: 'swap',
 });
 
-const plusJakartaSans = Plus_Jakarta_Sans({ 
-  subsets: ['latin'],
-  variable: '--font-jakarta',
+const displayFont = Prompt({
+  subsets: ['thai', 'latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-display',
+  display: 'swap',
 });
 
 export default function RootLayout({
@@ -25,54 +26,34 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // สถานะควบคุมการเปิด-ปิดของ Sidebar (เปิดอัตโนมัติบนเดสก์ท็อปขนาด 1024px ขึ้นไป)
+  // เปิด Sidebar อัตโนมัติบนเดสก์ท็อป (1024px ขึ้นไป)
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setSidebarOpen(true);
-      } else {
-        setSidebarOpen(false);
-      }
-    };
-    
+    const handleResize = () => setSidebarOpen(window.innerWidth >= 1024);
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   return (
-    <html lang="th" className={`${inter.variable} ${plusJakartaSans.variable}`}>
+    <html lang="th" className={`${bodyFont.variable} ${displayFont.variable}`}>
       <head>
-        <title>Missing Items System - ระบบสารสนเทศทรัพย์สินสูญหาย</title>
+        <title>Missing Items — ระบบแจ้งของหาย ม.แม่โจ้</title>
       </head>
-      {/* ใช้โทนสีพื้นหลังหลัก #f8f9ff และสีข้อความ #0d1c2f ตามสเปก Academic Clarity */}
-      <body className={`${inter.className} bg-[#f8f9ff] text-[#0d1c2f] antialiased selection:bg-[#d8e4f1] selection:text-[#00366f]`}>
+      <body className="font-sans bg-surface text-ink antialiased">
         <RoleProvider>
-          {/* ==========================================
-              2. INSTITUTIONAL APP LAYOUT CONTAINER
-              ========================================== */}
-          <div className="flex h-screen overflow-hidden bg-[#f8f9ff]">
-            
-            {/* Sidebar ด้านข้าง (เรียกใช้คอมโพเนนต์ Sidebar โดยตรง ไม่ครอบด้วย div ซ้ำซ้อน) */}
+          <div className="flex h-screen overflow-hidden">
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-            
-            {/* พื้นที่เนื้อหาหลักทางขวา (ปรับเว้นระยะขอบซ้ายตามสถานะเปิด/ปิดของ Sidebar อย่างถูกต้อง) */}
-            <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'}`}>
-              
-              {/* แถบเครื่องมือด้านบนแบบ Sticky */}
-              <div className="sticky top-0 z-30 border-b border-[#c2c6d3]/40 bg-white/80 backdrop-blur-md">
-                <TopBar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-              </div>
-              
-              {/* พื้นที่แสดงผลหน้าเว็บแต่ละหน้า (Main Content Area) */}
-              <main className="flex-1 overflow-y-auto p-6 md:p-10 bg-[#f8f9ff]">
-                <div className="max-w-[1280px] mx-auto w-full">
+
+            <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarOpen ? 'lg:ml-[272px]' : 'lg:ml-0'}`}>
+              <TopBar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+
+              <main className="flex-1 overflow-y-auto">
+                <div className="max-w-[1240px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
                   {children}
                 </div>
               </main>
-
             </div>
           </div>
         </RoleProvider>

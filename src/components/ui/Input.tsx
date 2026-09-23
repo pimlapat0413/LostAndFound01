@@ -43,10 +43,10 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
 
     const inputId = id || (label ? `input-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined);
 
-    const baseControlClasses = `w-full rounded-lg border transition-colors duration-150 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed ${
+    const baseControlClasses = `w-full rounded-xl border transition-colors duration-150 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed ${
       error
         ? 'border-red-400 bg-red-50/30 focus:border-red-500 focus:ring-red-200'
-        : 'border-gray-300 bg-white hover:border-gray-400 focus:border-blue-600 focus:ring-blue-100'
+        : 'border-line bg-white hover:border-slate-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-50'
     } ${icon ? 'pl-10' : 'pl-3.5'} pr-3.5 py-2.5`;
 
     return (

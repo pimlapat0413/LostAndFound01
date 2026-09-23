@@ -1,32 +1,53 @@
 'use client'
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  ChevronRight, 
-  MapPin, 
-  Image as ImageIcon, 
-  Upload, 
-  X, 
-  CheckCircle2, 
-  Tag, 
-  Calendar, 
-  Clock, 
-  Phone, 
+import dynamic from 'next/dynamic';
+import {
+  MapPin,
+  Image as ImageIcon,
+  Upload,
+  X,
+  CheckCircle2,
+  Tag,
+  Phone,
   ArrowRight,
-  Plus,
   Sparkles,
   AlertCircle,
   Eye,
-  ShieldCheck
+  ShieldCheck,
+  FilePlus2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { categories, locations } from '@/data/mockData';
+import { categories, locations, currentUser } from '@/data/mockData';
 import Modal from '@/components/ui/Modal';
+import MatchList from '@/components/items/MatchList';
 import { LostItem } from '@/types';
+import { getItems, saveItems, setMyStudentId, fileToCompressedDataUrl } from '@/lib/storage';
+import { findMatches, MatchResult } from '@/lib/matching';
+import PageHeader from '@/components/layout/PageHeader';
+import FormAlert from '@/components/ui/FormAlert';
+import {
+  MissingField,
+  requireText,
+  validateFullName,
+  validateStudentId,
+  validatePhone,
+  focusFirstInvalid
+} from '@/lib/validation';
+
+// ปิด SSR ให้กับ FreeMap ป้องกัน Error window is not defined
+const FreeMap = dynamic(() => import('@/components/map/FreeMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[400px] w-full bg-gray-50 flex items-center justify-center rounded-2xl border border-gray-200 text-gray-500 text-sm">
+      กำลังโหลดแผนที่...
+    </div>
+  )
+});
 
 interface UploadedPhoto {
   id: string;
@@ -35,30 +56,49 @@ interface UploadedPhoto {
   url: string;
 }
 
+const createInitialForm = () => ({
+  reportType: 'lost' as 'lost' | 'found',
+  name: '',
+  description: '',
+  categoryId: 'electronics',
+  urgency: 'normal' as 'normal' | 'high',
+  date: new Date().toISOString().split('T')[0],
+  time: '12:00',
+  faculty: locations[0].id,
+  facultyOther: '',
+  building: locations[0].buildings[0]?.id || '',
+  buildingOther: '',
+  room: '',
+  locationDetail: '',
+  contactName: '',
+  studentId: '',
+  contactPhone: '',
+  contactOther: '',
+  secretQuestion: '',
+  secretAnswer: '',
+  pinX: null as number | null,
+  pinY: null as number | null
+});
+
 export default function ReportPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    categoryId: 'electronics',
-    urgency: 'normal', 
-    date: new Date().toISOString().split('T')[0],
-    time: '12:00',
-    faculty: 'engineering',
-    building: 'eng-1',
-    room: '',
-    locationDetail: '',
-    contactName: '',
-    studentId: '',
-    contactPhone: '',
-    contactOther: ''
-  });
+  const [formData, setFormData] = useState(createInitialForm);
 
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createdItem, setCreatedItem] = useState<any>(null);
+  const [createdItem, setCreatedItem] = useState<LostItem | null>(null);
+  const [createdMatches, setCreatedMatches] = useState<MatchResult[]>([]);
+  const [mapKey, setMapKey] = useState(0);
+  const [showMissing, setShowMissing] = useState(false);
+  const isFound = formData.reportType === 'found';
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('type') === 'found') {
+      setFormData(prev => ({ ...prev, reportType: 'found' }));
+    }
+  }, []);
 
   // Validation Limits
   const LIMITS = {
@@ -67,9 +107,13 @@ export default function ReportPage() {
     locationDetail: 150,
     description: 500,
     contactName: 80,
-    studentId: 13,
+    studentId: 10,
     contactPhone: 10,
-    contactOther: 100
+    contactOther: 100,
+    facultyOther: 100,
+    buildingOther: 100,
+    secretQuestion: 150,
+    secretAnswer: 100
   };
 
   // Validation Error Checks
@@ -81,18 +125,42 @@ export default function ReportPage() {
     contactName: formData.contactName.length > LIMITS.contactName ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.contactName} ตัวอักษร)` : '',
     studentId: formData.studentId.length > LIMITS.studentId ? `รหัสนักศึกษาต้องไม่เกิน ${LIMITS.studentId} หลัก` : '',
     contactPhone: formData.contactPhone.length > LIMITS.contactPhone ? `เบอร์โทรศัพท์ต้องไม่เกิน ${LIMITS.contactPhone} หลัก` : '',
-    contactOther: formData.contactOther.length > LIMITS.contactOther ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.contactOther} ตัวอักษร)` : ''
+    contactOther: formData.contactOther.length > LIMITS.contactOther ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.contactOther} ตัวอักษร)` : '',
+    facultyOther: (formData.faculty === 'other' && formData.facultyOther.length > LIMITS.facultyOther) ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.facultyOther} ตัวอักษร)` : '',
+    buildingOther: ((formData.faculty === 'other' || formData.building === 'other-bld') && formData.buildingOther.length > LIMITS.buildingOther) ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.buildingOther} ตัวอักษร)` : '',
+    secretQuestion: formData.secretQuestion.length > LIMITS.secretQuestion ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.secretQuestion} ตัวอักษร)` : '',
+    secretAnswer: formData.secretQuestion.trim() && !formData.secretAnswer.trim()
+      ? 'กรุณากรอกคำตอบของคำถามยืนยัน'
+      : formData.secretAnswer.length > LIMITS.secretAnswer ? `ข้อความยาวเกินกำหนด (สูงสุด ${LIMITS.secretAnswer} ตัวอักษร)` : ''
   };
 
   const hasErrors = Object.values(errors).some(err => Boolean(err));
 
+  // ช่องที่ต้องกรอกให้ครบ (เรียงตามลำดับบนหน้า) ถ้ายังไม่ครบจะบันทึกไม่ได้
+  const missingFields: MissingField[] = [
+    ...(formData.faculty === 'other'
+      ? [{ id: 'report-faculty-other', label: 'คณะ / หน่วยงาน', message: requireText(formData.facultyOther, 'กรุณาระบุคณะ / หน่วยงาน') }]
+      : []),
+    { id: 'report-room', label: 'ห้อง / ชั้น', message: requireText(formData.room, 'กรุณากรอกห้องหรือชั้น') },
+    { id: 'report-location-detail', label: 'รายละเอียดสถานที่', message: requireText(formData.locationDetail, 'กรุณาอธิบายสถานที่เพิ่มเติม') },
+    { id: 'report-name', label: 'ชื่อสิ่งของ', message: requireText(formData.name, 'กรุณากรอกชื่อสิ่งของ') },
+    { id: 'report-description', label: 'รายละเอียดสิ่งของ', message: requireText(formData.description, 'กรุณาอธิบายลักษณะสิ่งของ') },
+    { id: 'report-contact-name', label: 'ชื่อผู้ติดต่อ', message: validateFullName(formData.contactName) },
+    { id: 'report-student-id', label: 'รหัสนักศึกษา', message: validateStudentId(formData.studentId) },
+    { id: 'report-phone', label: 'เบอร์โทรศัพท์', message: validatePhone(formData.contactPhone) },
+    { id: 'report-contact-other', label: 'ช่องทางอื่นๆ', message: requireText(formData.contactOther, 'กรุณากรอก Line ID หรืออีเมล') },
+  ].filter((f) => f.message);
+
+  // ข้อความเตือนของช่องนั้น (แสดงหลังจากกดบันทึกครั้งแรกแล้ว)
+  const missingMsg = (id: string) => (showMissing && missingFields.find((f) => f.id === id)?.message) || '';
+
   const handleQuickFill = () => {
     setFormData(prev => ({
       ...prev,
-      contactName: 'กุริญา ทาเทร์',
-      studentId: '6504101234',
+      contactName: 'พิมพ์ลภัส หอจงกล',
+      studentId: currentUser.studentId,
       contactPhone: '0812345678',
-      contactOther: 'Line ID: kuriya_t'
+      contactOther: `Email: ${currentUser.email}`
     }));
   };
 
@@ -103,30 +171,36 @@ export default function ReportPage() {
     }));
   };
 
+  // แปลงรูปเป็น data URL (ย่อขนาดแล้ว) เพื่อให้รูปยังอยู่หลังรีเฟรชหน้า
+  const addPhotos = async (files: File[]) => {
+    const images = files.filter(f => f.type.startsWith('image/'));
+    const newPhotos = await Promise.all(images.map(async (file): Promise<UploadedPhoto | null> => {
+      try {
+        const url = await fileToCompressedDataUrl(file);
+        return {
+          id: Math.random().toString(36).substring(7),
+          name: file.name,
+          size: ((url.length * 0.75) / (1024 * 1024)).toFixed(2) + ' MB',
+          url
+        };
+      } catch {
+        return null;
+      }
+    }));
+    setPhotos((prev) => [...prev, ...newPhotos.filter((p): p is UploadedPhoto => p !== null)]);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files);
-      const newPhotos: UploadedPhoto[] = newFiles.map((file) => ({
-        id: Math.random().toString(36).substring(7),
-        name: file.name,
-        size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-        url: URL.createObjectURL(file)
-      }));
-      setPhotos((prev) => [...prev, ...newPhotos]);
+      addPhotos(Array.from(e.target.files));
+      e.target.value = '';
     }
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const droppedFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-      const newPhotos: UploadedPhoto[] = droppedFiles.map((file) => ({
-        id: Math.random().toString(36).substring(7),
-        name: file.name,
-        size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-        url: URL.createObjectURL(file)
-      }));
-      setPhotos((prev) => [...prev, ...newPhotos]);
+      addPhotos(Array.from(e.dataTransfer.files));
     }
   };
 
@@ -146,110 +220,126 @@ export default function ReportPage() {
       alert('กรุณาตรวจสอบข้อมูลที่กรอกเกินขีดจำกัดก่อนบันทึก');
       return;
     }
+    if (missingFields.length > 0) {
+      setShowMissing(true);
+      focusFirstInvalid(missingFields);
+      return;
+    }
 
     setIsSubmitting(true);
 
     const generatedCode = `LF-2026-000${Math.floor(Math.random() * 90) + 10}`;
     const selectedCat = categories.find(c => c.id === formData.categoryId)?.name || 'ทั่วไป';
-    const selectedFac = locations.find(l => l.id === formData.faculty)?.name || '';
-    const selectedBld = selectedFacultyObj.buildings.find(b => b.id === formData.building)?.name || '';
-    const locationString = `${selectedFac} (${selectedBld} ${formData.room ? `ห้อง ${formData.room}` : ''}) ${formData.locationDetail}`;
+    const selectedFac = formData.faculty === 'other'
+      ? (formData.facultyOther.trim() || 'อื่นๆ')
+      : (locations.find(l => l.id === formData.faculty)?.name || '');
+    const selectedBld = (formData.faculty === 'other' || formData.building === 'other-bld')
+      ? (formData.buildingOther.trim() || selectedFacultyObj?.buildings.find(b => b.id === formData.building)?.name || '')
+      : (selectedFacultyObj?.buildings.find(b => b.id === formData.building)?.name || '');
+    const locationString = `${selectedFac}${selectedBld ? ` (${selectedBld}${formData.room ? ` ห้อง ${formData.room}` : ''})` : formData.room ? ` (${formData.room})` : ''} ${formData.locationDetail}`;
 
-    const newItem = {
+    const newItem: LostItem = {
       id: Math.random().toString(36).substring(2) + Date.now().toString(36),
       code: generatedCode,
+      reportType: formData.reportType,
+      urgency: formData.urgency,
       name: formData.name.trim(),
       description: formData.description.trim(),
       category: selectedCat,
+      color: '',
+      brand: '',
       location: locationString.trim(),
+      locationDetail: '',
+      faculty: selectedFac,
+      building: selectedBld,
+      floor: '',
+      room: formData.room.trim(),
       dateLost: formData.date,
       timeLost: formData.time,
       reporterName: formData.contactName.trim(),
       reporterStudentId: formData.studentId.trim(),
+      reporterEmail: '',
       reporterPhone: formData.contactPhone.trim(),
       reporterContact: formData.contactOther.trim(),
-      status: 'searching',
-      imageUrl: photos.length > 0 ? photos[0].url : ''
-    } as LostItem;
+      reporterAvatar: '',
+      status: isFound ? 'found' : 'searching',
+      imageUrl: photos.length > 0 ? photos[0].url : '',
+      thumbnails: photos.map(p => p.url),
+      createdAt: new Date().toISOString(),
+      pinX: formData.pinX ?? undefined,
+      pinY: formData.pinY ?? undefined,
+      ...(isFound && formData.secretQuestion.trim()
+        ? { secretQuestion: formData.secretQuestion.trim(), secretAnswer: formData.secretAnswer.trim() }
+        : {})
+    };
 
     setTimeout(() => {
-      let existingItems: LostItem[] = [];
-      const savedItems = localStorage.getItem('lostItems');
-      if (savedItems) {
-        try {
-          existingItems = JSON.parse(savedItems);
-        } catch (err) {
-          console.error("Error parsing saved items", err);
-        }
+      const existingItems = getItems();
+      if (!saveItems([newItem, ...existingItems])) {
+        setIsSubmitting(false);
+        alert('บันทึกไม่สำเร็จ: พื้นที่จัดเก็บในเบราว์เซอร์เต็ม ลองลดจำนวนรูปภาพแล้วบันทึกใหม่');
+        return;
       }
-
-      const updatedItems = [newItem, ...existingItems];
-      localStorage.setItem('lostItems', JSON.stringify(updatedItems));
-
-      const existingClaims = JSON.parse(localStorage.getItem('adminClaimRequests') || '[]');
-      const newNotificationItem = {
-        requestId: `NOTIF-${Date.now().toString().slice(-4)}`,
-        itemId: newItem.id,
-        itemName: formData.name,
-        claimerName: formData.contactName || 'ผู้ใช้งานระบบ',
-        studentId: formData.studentId || '-',
-        claimDateTime: 'เมื่อสักครู่นี้',
-        contact: formData.contactPhone || 'ไม่ระบุเบอร์',
-        status: 'pending',
-        isNewItemReport: true
-      };
-      localStorage.setItem('adminClaimRequests', JSON.stringify([newNotificationItem, ...existingClaims]));
-
-      window.dispatchEvent(new Event('storage'));
+      setMyStudentId(newItem.reporterStudentId);
 
       setIsSubmitting(false);
+      setCreatedMatches(findMatches(newItem, existingItems));
       setCreatedItem(newItem);
     }, 600);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f8f9ff] to-[#eff4ff]/30 pb-16 font-sans text-[#0d1c2f]">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        
-        <nav className="flex items-center gap-2 text-xs text-gray-500 font-['Inter']">
-          <Link href="/" className="hover:text-[#00366f] transition-colors">หน้าแรก</Link>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-gray-900 font-medium">แจ้งของหาย</span>
-        </nav>
+    <div className="pb-8">
+      <div className="space-y-8">
 
-        <div className="relative overflow-hidden bg-gradient-to-r from-[#00366f] via-[#004c99] to-[#1e3a8a] rounded-3xl p-6 sm:p-10 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="relative z-10 max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md px-3 py-1 rounded-full text-xs text-blue-100 border border-white/20 font-['Inter']">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              <span>ระบบบันทึกทรัพย์สินอัจฉริยะ</span>
+        <PageHeader
+          eyebrow="แจ้งของหาย / พบของ"
+          title={isFound ? 'แจ้งพบสิ่งของ' : 'แจ้งของหาย'}
+          description="กรอกรายละเอียด แนบรูปถ่ายจริง และปักหมุดตำแหน่ง ข้อมูลยิ่งครบ ระบบยิ่งจับคู่ได้แม่นยำ"
+          icon={<FilePlus2 className="w-5 h-5" />}
+          actions={
+            <div className="hidden md:flex items-center gap-2 rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-200 px-3 py-2 text-xs max-w-xs">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              แนบรูปชัดๆ และปักหมุดตำแหน่ง ช่วยให้ตามเจอเร็วขึ้นมาก
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight font-['Plus_Jakarta_Sans']">แบบฟอร์มแจ้งของหาย / พบของหาย</h1>
-            <p className="text-blue-100 text-xs sm:text-sm font-['Inter'] leading-relaxed opacity-90">
-              กรอกรายละเอียด อัปโหลดรูปถ่ายจริง และระบุสถานที่ เพื่อให้ระบบกระจายข้อมูลและช่วยติดตามคืนทรัพย์สินได้อย่างรวดเร็ว
-            </p>
-          </div>
-          <div className="shrink-0 relative z-10 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20 text-xs space-y-1 font-['Inter']">
-            <p className="font-bold text-amber-300 flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5" /> คำแนะนำ
-            </p>
-            <p className="text-blue-100 opacity-90 max-w-xs">กรอกข้อมูลให้ครบถ้วนและแนบรูปภาพชัดเจน จะช่วยเพิ่มโอกาสในการตามหาของเจอสูงถึง 90%</p>
-          </div>
-        </div>
+          }
+        />
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
+          {/* เลือกประเภทการแจ้ง */}
+          <div className="grid grid-cols-2 gap-3 mb-8">
+            {([
+              { id: 'lost', title: 'ฉันทำของหาย', desc: 'แจ้งตามหาสิ่งของของตัวเอง' },
+              { id: 'found', title: 'ฉันเก็บของได้', desc: 'แจ้งพบสิ่งของเพื่อตามหาเจ้าของ' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setFormData({ ...formData, reportType: opt.id })}
+                className={`text-left p-4 sm:p-5 rounded-2xl border-2 transition-all cursor-pointer ${
+                  formData.reportType === opt.id
+                    ? 'border-[#2346d8] bg-[#eef1fe] shadow-sm'
+                    : 'border-line bg-white hover:border-[#2346d8]/40'
+                }`}
+              >
+                <p className={`text-sm sm:text-base font-bold font-display ${formData.reportType === opt.id ? 'text-[#2346d8]' : 'text-gray-800'}`}>{opt.title}</p>
+                <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
+
             {/* ฝั่งซ้าย: รูปภาพและสถานที่ */}
             <div className="lg:col-span-5 space-y-6">
-              
-              <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-[#c2c6d3]/40 space-y-4">
-                <div className="flex items-center justify-between font-['Inter']">
-                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 font-['Plus_Jakarta_Sans']">
-                    <ImageIcon className="w-4 h-4 text-[#00366f]" />
+
+              <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-line space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 font-display">
+                    <ImageIcon className="w-4 h-4 text-[#2346d8]" />
                     <span>รูปภาพสิ่งของ (ถ่ายจริง / อัปโหลด)</span>
                   </h3>
-                  <span className="text-xs bg-blue-50 text-[#00366f] px-2.5 py-0.5 rounded-full font-semibold">
+                  <span className="text-xs bg-brand-50 text-[#2346d8] px-2.5 py-0.5 rounded-full font-semibold">
                     {photos.length} รูป
                   </span>
                 </div>
@@ -263,34 +353,34 @@ export default function ReportPage() {
                   className="hidden"
                 />
 
-                <div 
+                <div
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleDrop}
-                  className="border-2 border-dashed border-[#00366f]/30 hover:border-[#00366f] rounded-2xl p-6 flex flex-col items-center justify-center bg-[#eff4ff]/30 hover:bg-[#eff4ff]/60 cursor-pointer transition-all text-center group"
+                  className="border-2 border-dashed border-[#2346d8]/30 hover:border-[#2346d8] rounded-2xl p-6 flex flex-col items-center justify-center bg-[#eef1fe]/30 hover:bg-[#eef1fe]/60 cursor-pointer transition-all text-center group"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-white shadow-xs flex items-center justify-center text-[#00366f] group-hover:scale-110 transition-transform mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-[#2346d8] group-hover:scale-110 transition-transform mb-3">
                     <Upload className="w-5 h-5" />
                   </div>
-                  <p className="text-xs sm:text-sm font-bold text-[#00366f] font-['Plus_Jakarta_Sans']">คลิกเลือกรูปภาพจากเครื่อง</p>
-                  <p className="text-[11px] text-gray-500 mt-1 font-['Inter']">หรือลากไฟล์ภาพมาวางที่นี่ (รองรับ JPG, PNG, WEBP)</p>
+                  <p className="text-xs sm:text-sm font-bold text-[#2346d8] font-display">คลิกเลือกรูปภาพจากเครื่อง</p>
+                  <p className="text-[11px] text-gray-500 mt-1">หรือลากไฟล์ภาพมาวางที่นี่ (รองรับ JPG, PNG, WEBP)</p>
                 </div>
 
                 {photos.length > 0 && (
-                  <div className="space-y-2 pt-2 font-['Inter']">
+                  <div className="space-y-2 pt-2">
                     <p className="text-xs font-semibold text-gray-700">รูปภาพที่แนบแล้ว:</p>
                     <div className="grid grid-cols-3 gap-2.5">
                       {photos.map((photo) => (
-                        <div key={photo.id} className="group relative aspect-square rounded-2xl overflow-hidden border border-gray-200 shadow-xs bg-gray-100">
-                          <img 
-                            src={photo.url} 
-                            alt={photo.name} 
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                        <div key={photo.id} className="group relative aspect-square rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100">
+                          <img
+                            src={photo.url}
+                            alt={photo.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           />
                           <button
                             type="button"
                             onClick={() => removePhoto(photo.id)}
-                            className="absolute top-2 right-2 bg-black/70 hover:bg-red-600 text-white rounded-full p-1 transition-colors shadow-xs cursor-pointer"
+                            className="absolute top-2 right-2 bg-black/70 hover:bg-red-600 text-white rounded-full p-1 transition-colors shadow-sm cursor-pointer"
                             title="ลบรูปนี้"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -303,46 +393,69 @@ export default function ReportPage() {
               </div>
 
               {/* สถานที่ */}
-              <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-[#c2c6d3]/40 space-y-4 font-['Inter']">
-                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 font-['Plus_Jakarta_Sans']">
-                  <MapPin className="w-4 h-4 text-[#00366f]" />
-                  <span>สถานที่พบหรือทำหาย</span>
+              <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-line space-y-4">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 font-display">
+                  <MapPin className="w-4 h-4 text-[#2346d8]" />
+                  <span>{isFound ? 'สถานที่พบสิ่งของ' : 'สถานที่ทำหาย'}</span>
                 </h3>
 
                 <div className="space-y-3.5 text-xs">
                   <div>
                     <label className="block font-semibold text-gray-700 mb-1">คณะ / หน่วยงาน <span className="text-red-500">*</span></label>
-                    <Select 
+                    <Select
                       options={locations.map(loc => ({ value: loc.id, label: loc.name }))}
                       value={formData.faculty}
                       onChange={(e) => {
                         const newFac = e.target.value;
                         const facObj = locations.find(l => l.id === newFac) || locations[0];
                         setFormData({
-                          ...formData, 
+                          ...formData,
                           faculty: newFac,
                           building: facObj.buildings[0]?.id || ''
                         });
                       }}
                       placeholder="เลือกคณะ"
                     />
+                    {formData.faculty === 'other' && (
+                      <div className="mt-2">
+                        <Input
+                          id="report-faculty-other"
+                          required
+                          error={errors.facultyOther || missingMsg('report-faculty-other')}
+                          value={formData.facultyOther}
+                          onChange={(e) => setFormData({ ...formData, facultyOther: e.target.value })}
+                          placeholder="ระบุคณะ / หน่วยงานอื่นๆ"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div>
                     <label className="block font-semibold text-gray-700 mb-1">อาคาร / ตึก <span className="text-red-500">*</span></label>
-                    <Select 
+                    <Select
                       options={buildingOptions}
                       value={formData.building}
                       onChange={(e) => setFormData({...formData, building: e.target.value})}
                       placeholder="เลือกอาคาร"
                     />
+                    {(formData.faculty === 'other' || formData.building === 'other-bld') && (
+                      <div className="mt-2">
+                        <Input
+                          error={errors.buildingOther}
+                          value={formData.buildingOther}
+                          onChange={(e) => setFormData({ ...formData, buildingOther: e.target.value })}
+                          placeholder="ระบุชื่ออาคาร / ตึก (ถ้ามี)"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div>
                     <label className="block font-semibold text-gray-700 mb-1">ห้อง / ชั้น <span className="text-red-500">*</span></label>
-                    <Input 
+                    <Input
+                      id="report-room"
                       required
-                      error={errors.room}
+                      error={errors.room || missingMsg('report-room')}
                       value={formData.room}
                       onChange={(e) => setFormData({...formData, room: e.target.value})}
                       placeholder="เช่น ชั้น 2 ห้อง 204 หรือ หน้าลิฟต์"
@@ -351,29 +464,53 @@ export default function ReportPage() {
 
                   <div>
                     <label className="block font-semibold text-gray-700 mb-1">รายละเอียดสถานที่เพิ่มเติม <span className="text-red-500">*</span></label>
-                    <Input 
+                    <Input
+                      id="report-location-detail"
                       required
-                      error={errors.locationDetail}
+                      error={errors.locationDetail || missingMsg('report-location-detail')}
                       value={formData.locationDetail}
                       onChange={(e) => setFormData({...formData, locationDetail: e.target.value})}
                       placeholder="เช่น วางลืมไว้บนโต๊ะแถวหลังสุด ใกล้ประตูทางออก"
                     />
                   </div>
+
+                  {/* แผนที่แบบ OpenStreetMap (Leaflet) */}
+                  <div className="pt-2">
+                    <label className="block font-semibold text-gray-700 mb-1">
+                      ระบุตำแหน่งบนแผนที่ (ไม่บังคับ)
+                    </label>
+                    <FreeMap
+                      key={mapKey}
+                      onLocationSelect={(pos: any) => setFormData(prev => ({ ...prev, pinX: pos.lat, pinY: pos.lng }))}
+                    />
+                    {/* แสดงข้อความแจ้งเตือนเมื่อปักหมุดสำเร็จ */}
+                    {(formData.pinX && formData.pinY) && (
+                      <div className="mt-3 p-3 bg-[#eef1fe] border border-[#dfe5fd] rounded-xl flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-[#2346d8] shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-[#2346d8] text-[11px]">บันทึกพิกัดแผนที่แล้ว</p>
+                          <p className="text-gray-500 text-[10px] font-mono mt-0.5">
+                            Lat: {formData.pinX.toFixed(5)}, Lng: {formData.pinY.toFixed(5)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Live Preview Card */}
-              <div className="bg-gradient-to-br from-[#eff4ff] to-white p-6 rounded-3xl border border-[#d8e4f1] space-y-3 font-['Inter']">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#00366f]">
+              <div className="bg-gradient-to-br from-[#eef1fe] to-white p-6 rounded-3xl border border-[#dfe5fd] space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#2346d8]">
                   <Eye className="w-4 h-4" />
                   <span>ตัวอย่างการแสดงผลในการ์ด (Live Preview)</span>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-2">
+                <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-2">
                   <div className="flex justify-between items-start">
                     <span className="text-[10px] font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-600">LF-2026-XX</span>
-                    <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">กำลังค้นหา</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${isFound ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{isFound ? 'พบแล้ว' : 'กำลังค้นหา'}</span>
                   </div>
-                  <h4 className="font-bold text-sm text-gray-900 font-['Plus_Jakarta_Sans']">{formData.name || 'ชื่อสิ่งของ (ตัวอย่าง)'}</h4>
+                  <h4 className="font-bold text-sm text-gray-900 font-display">{formData.name || 'ชื่อสิ่งของ (ตัวอย่าง)'}</h4>
                   <p className="text-[11px] text-gray-500 line-clamp-1">{formData.description || 'รายละเอียดลักษณะสิ่งของ...'}</p>
                 </div>
               </div>
@@ -382,23 +519,24 @@ export default function ReportPage() {
 
             {/* ฝั่งขวา: ข้อมูลสิ่งของและช่องทางติดต่อ */}
             <div className="lg:col-span-7 space-y-6">
-              
-              <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-[#c2c6d3]/40 space-y-5 font-['Inter']">
-                <h3 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2 font-['Plus_Jakarta_Sans']">
-                  <Tag className="w-4 h-4 text-[#00366f]" />
+
+              <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-line space-y-5">
+                <h3 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2 font-display">
+                  <Tag className="w-4 h-4 text-[#2346d8]" />
                   <span>ข้อมูลสิ่งของ</span>
                 </h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  
+
                   {/* ชื่อสิ่งของ */}
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
                       ชื่อสิ่งของ <span className="text-red-500">*</span>
                     </label>
-                    <Input 
+                    <Input
+                      id="report-name"
                       required
-                      error={errors.name}
+                      error={errors.name || missingMsg('report-name')}
                       value={formData.name}
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
                       placeholder="เช่น iPhone 15 Pro สีดำ, กระเป๋าสตางค์หนังสีน้ำตาล"
@@ -407,7 +545,7 @@ export default function ReportPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">หมวดหมู่ <span className="text-red-500">*</span></label>
-                    <Select 
+                    <Select
                       options={categories.map(cat => ({ value: cat.id, label: cat.name }))}
                       value={formData.categoryId}
                       onChange={(e) => setFormData({...formData, categoryId: e.target.value})}
@@ -419,8 +557,8 @@ export default function ReportPage() {
                     <label className="block text-xs font-semibold text-gray-700 mb-1">ระดับความสำคัญ / ความเร่งด่วน</label>
                     <select
                       value={formData.urgency}
-                      onChange={(e) => setFormData({...formData, urgency: e.target.value})}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#00366f]"
+                      onChange={(e) => setFormData({...formData, urgency: e.target.value as 'normal' | 'high'})}
+                      className="w-full px-3.5 py-2.5 bg-white border border-line rounded-xl text-sm hover:border-slate-300 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-50"
                     >
                       <option value="normal">ปกติ (ทรัพย์สินทั่วไป)</option>
                       <option value="high">สำคัญมาก (เอกสารสำคัญ / ของมีค่าสูง)</option>
@@ -428,8 +566,8 @@ export default function ReportPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">วันที่ทำหาย / พบ <span className="text-red-500">*</span></label>
-                    <Input 
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">{isFound ? 'วันที่พบ' : 'วันที่ทำหาย'} <span className="text-red-500">*</span></label>
+                    <Input
                       type="date"
                       required
                       value={formData.date}
@@ -439,7 +577,7 @@ export default function ReportPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">เวลาโดยประมาณ <span className="text-red-500">*</span></label>
-                    <Input 
+                    <Input
                       type="time"
                       required
                       value={formData.time}
@@ -459,7 +597,7 @@ export default function ReportPage() {
                             key={tag}
                             type="button"
                             onClick={() => handleAddTag(tag)}
-                            className="text-[10px] bg-[#eff4ff] hover:bg-[#d8e4f1] text-[#00366f] px-2 py-0.5 rounded-lg border border-[#d8e4f1] transition-colors cursor-pointer"
+                            className="text-[10px] bg-[#eef1fe] hover:bg-[#dfe5fd] text-[#2346d8] px-2 py-0.5 rounded-lg border border-[#dfe5fd] transition-colors cursor-pointer"
                           >
                             + {tag}
                           </button>
@@ -467,38 +605,65 @@ export default function ReportPage() {
                       </div>
                     </div>
 
-                    <textarea 
+                    <textarea
+                      id="report-description"
                       required
-                      className={`w-full rounded-2xl border px-3.5 py-2.5 text-xs focus:outline-none transition-colors ${
-                        errors.description 
-                          ? 'border-red-400 bg-red-50/30 focus:border-red-500 focus:ring-2 focus:ring-red-200' 
-                          : 'border-gray-200 bg-white focus:ring-2 focus:ring-[#00366f]'
+                      className={`w-full rounded-2xl border px-3.5 py-2.5 text-sm focus:outline-none transition-colors ${
+                        errors.description || missingMsg('report-description')
+                          ? 'border-red-400 bg-red-50/30 focus:border-red-500 focus:ring-2 focus:ring-red-200'
+                          : 'border-line bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-50'
                       }`}
                       rows={4}
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
                       placeholder="ระบุ สี ยี่ห้อ สัญลักษณ์ รอยตำหนิ หรือเคส เพื่อให้จำแนกได้ชัดเจน..."
                     />
-                    {errors.description && (
+                    {(errors.description || missingMsg('report-description')) && (
                       <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        <span>{errors.description}</span>
+                        <span>{errors.description || missingMsg('report-description')}</span>
                       </p>
                     )}
                   </div>
+
+                  {isFound && (
+                    <div className="sm:col-span-2 p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-bold text-emerald-900">คำถามยืนยันความเป็นเจ้าของ (ไม่แสดงต่อสาธารณะ)</p>
+                          <p className="text-[11px] text-emerald-800/80 mt-0.5">ตั้งคำถามจากรายละเอียดที่มีแต่เจ้าของตัวจริงรู้ ผู้ขอรับคืนต้องตอบให้ถูกก่อนส่งคำขอได้ (ตอบผิดได้ไม่เกิน 3 ครั้ง)</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Input
+                          error={errors.secretQuestion}
+                          value={formData.secretQuestion}
+                          onChange={(e) => setFormData({ ...formData, secretQuestion: e.target.value })}
+                          placeholder="เช่น ภาพพื้นหลังหน้าจอเป็นรูปอะไร?"
+                        />
+                        <Input
+                          error={errors.secretAnswer}
+                          value={formData.secretAnswer}
+                          onChange={(e) => setFormData({ ...formData, secretAnswer: e.target.value })}
+                          placeholder="คำตอบ เช่น รูปแมวสีส้ม"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* ช่องทางติดต่อผู้แจ้ง */}
                 <div className="pt-4 border-t border-gray-100">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                    <h3 className="text-base font-bold text-gray-900 flex items-center gap-2 font-['Plus_Jakarta_Sans']">
-                      <Phone className="w-4 h-4 text-[#00366f]" />
+                    <h3 className="text-base font-bold text-gray-900 flex items-center gap-2 font-display">
+                      <Phone className="w-4 h-4 text-[#2346d8]" />
                       <span>ช่องทางติดต่อผู้แจ้ง</span>
                     </h3>
                     <button
                       type="button"
                       onClick={handleQuickFill}
-                      className="text-xs bg-[#eff4ff] hover:bg-[#d8e4f1] text-[#00366f] px-3 py-1.5 rounded-xl font-semibold border border-[#d8e4f1] transition-colors cursor-pointer flex items-center gap-1 self-start sm:self-auto"
+                      className="text-xs bg-[#eef1fe] hover:bg-[#dfe5fd] text-[#2346d8] px-3 py-1.5 rounded-xl font-semibold border border-[#dfe5fd] transition-colors cursor-pointer flex items-center gap-1 self-start sm:self-auto"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>เติมข้อมูลโปรไฟล์ของฉันด่วน</span>
@@ -506,15 +671,16 @@ export default function ReportPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    
+
                     {/* ชื่อผู้ติดต่อ */}
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
                         ชื่อผู้ติดต่อ <span className="text-red-500">*</span>
                       </label>
-                      <Input 
+                      <Input
+                        id="report-contact-name"
                         required
-                        error={errors.contactName}
+                        error={errors.contactName || missingMsg('report-contact-name')}
                         value={formData.contactName}
                         onChange={(e) => {
                           const val = e.target.value.replace(/[0-9]/g, '');
@@ -529,15 +695,18 @@ export default function ReportPage() {
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
                         รหัสนักศึกษา <span className="text-red-500">*</span>
                       </label>
-                      <Input 
+                      <Input
+                        id="report-student-id"
                         required
-                        error={errors.studentId}
+                        inputMode="numeric"
+                        maxLength={10}
+                        error={errors.studentId || missingMsg('report-student-id')}
                         value={formData.studentId}
                         onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, '');
                           setFormData({...formData, studentId: val});
                         }}
-                        placeholder="เช่น 65012345"
+                        placeholder="เช่น 6704101361"
                       />
                     </div>
 
@@ -546,10 +715,12 @@ export default function ReportPage() {
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
                         เบอร์โทรศัพท์ <span className="text-red-500">*</span>
                       </label>
-                      <Input 
+                      <Input
                         type="tel"
+                        id="report-phone"
                         required
-                        error={errors.contactPhone}
+                        maxLength={10}
+                        error={errors.contactPhone || missingMsg('report-phone')}
                         value={formData.contactPhone}
                         onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, '');
@@ -564,9 +735,10 @@ export default function ReportPage() {
                       <label className="block text-xs font-semibold text-gray-700 mb-1">
                         ช่องทางอื่นๆ <span className="text-red-500">*</span>
                       </label>
-                      <Input 
+                      <Input
+                        id="report-contact-other"
                         required
-                        error={errors.contactOther}
+                        error={errors.contactOther || missingMsg('report-contact-other')}
                         value={formData.contactOther}
                         onChange={(e) => setFormData({...formData, contactOther: e.target.value})}
                         placeholder="เช่น Line ID: kuriya_t / Email: student@university.ac.th"
@@ -576,21 +748,27 @@ export default function ReportPage() {
                   </div>
                 </div>
 
+                {showMissing && (
+                  <div className="pt-6">
+                    <FormAlert title="บันทึกไม่ได้ — กรุณากรอกข้อมูลให้ครบถ้วนก่อน" fields={missingFields} />
+                  </div>
+                )}
+
                 <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
-                  <Button 
-                    variant="secondary" 
-                    type="button" 
+                  <Button
+                    variant="secondary"
+                    type="button"
                     onClick={() => router.back()}
                   >
                     ยกเลิก
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isSubmitting || hasErrors}
-                    className={`font-semibold px-6 shadow-xs cursor-pointer ${
-                      hasErrors 
-                        ? 'bg-gray-400 cursor-not-allowed opacity-60' 
-                        : 'bg-[#00366f] hover:bg-[#004c99] text-white'
+                    className={`font-semibold px-6 shadow-sm cursor-pointer ${
+                      hasErrors
+                        ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                        : 'bg-[#2346d8] hover:bg-[#1c38b4] text-white'
                     }`}
                   >
                     {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกและโพสต์ข้อมูล'}
@@ -610,13 +788,13 @@ export default function ReportPage() {
         <Modal
           isOpen={!!createdItem}
           onClose={() => setCreatedItem(null)}
-          title="บันทึกข้อมูลสิ่งของสูญหายสำเร็จ!"
+          title={createdItem.reportType === 'found' ? 'บันทึกการแจ้งพบสิ่งของสำเร็จ!' : 'บันทึกข้อมูลสิ่งของสูญหายสำเร็จ!'}
         >
-          <div className="space-y-4 text-xs text-gray-700 font-['Inter']">
+          <div className="space-y-4 text-xs text-gray-700">
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-sm text-emerald-900 font-['Plus_Jakarta_Sans']">โพสต์รายการเรียบร้อยแล้ว</p>
+                <p className="font-bold text-sm text-emerald-900 font-display">โพสต์รายการเรียบร้อยแล้ว</p>
                 <p className="text-emerald-700 mt-0.5">
                   รหัสรายการของคุณคือ <strong className="font-mono text-emerald-900 font-bold">{createdItem.code}</strong> ข้อมูลถูกบันทึกและพร้อมแสดงในคลังของหายทันที
                 </p>
@@ -632,7 +810,7 @@ export default function ReportPage() {
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-sm text-gray-900 truncate font-['Plus_Jakarta_Sans']">{createdItem.name}</p>
+                <p className="font-bold text-sm text-gray-900 truncate font-display">{createdItem.name}</p>
                 <p className="text-gray-500">{createdItem.category} • {createdItem.location}</p>
                 <p className="text-gray-400 text-[11px] mt-0.5">
                   ผู้แจ้ง: {createdItem.reporterName} {createdItem.reporterStudentId ? `(${createdItem.reporterStudentId})` : ''} • โทร: {createdItem.reporterPhone}
@@ -640,27 +818,32 @@ export default function ReportPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
+            <div className="space-y-2">
+              <p className="font-bold text-gray-900 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                {createdItem.reportType === 'found' ? 'รายการแจ้งหายที่อาจเป็นของชิ้นนี้' : 'ของที่มีคนแจ้งพบซึ่งอาจเป็นของคุณ'}
+              </p>
+              <MatchList
+                matches={createdMatches}
+                emptyText="ยังไม่พบรายการที่ตรงกัน ระบบจะแสดงรายการที่ตรงกันในหน้า &quot;รายการของฉัน&quot; เมื่อมีคนแจ้งเข้ามา"
+              />
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2 pt-2 border-t">
+              <Link
+                href="/my-items"
+                className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-xl"
+              >
+                รายการของฉัน
+              </Link>
               <button
                 onClick={() => {
                   setCreatedItem(null);
-                  setFormData({
-                    name: '',
-                    description: '',
-                    categoryId: 'electronics',
-                    urgency: 'normal',
-                    date: new Date().toISOString().split('T')[0],
-                    time: '12:00',
-                    faculty: 'engineering',
-                    building: 'eng-1',
-                    room: '',
-                    locationDetail: '',
-                    contactName: '',
-                    studentId: '',
-                    contactPhone: '',
-                    contactOther: ''
-                  });
+                  setCreatedMatches([]);
+                  setFormData(createInitialForm());
+                  setShowMissing(false);
                   setPhotos([]);
+                  setMapKey(k => k + 1);
                 }}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl cursor-pointer"
               >
@@ -668,7 +851,7 @@ export default function ReportPage() {
               </button>
               <Link
                 href="/items"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#00366f] hover:bg-[#004c99] text-white font-semibold rounded-xl shadow-xs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#2346d8] hover:bg-[#1c38b4] text-white font-semibold rounded-xl shadow-sm"
               >
                 <span>ดูรายการของหายทั้งหมด</span>
                 <ArrowRight className="w-3.5 h-3.5" />

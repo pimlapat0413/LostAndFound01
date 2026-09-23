@@ -91,22 +91,22 @@ export const Modal: React.FC<ModalProps> = ({
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-ink/50 backdrop-blur-sm transition-opacity"
         onClick={closeOnOverlayClick ? onClose : undefined}
       />
 
       {/* Dialog Box */}
       <div
-        className={`relative w-full bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-10 my-8 transform transition-all duration-200 ${
+        className={`relative w-full bg-white rounded-3xl shadow-2xl ring-1 ring-black/5 overflow-hidden z-10 my-8 transform transition-all duration-200 ${
           animateShow ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'
         } ${sizeClasses[size]} ${className}`}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-line">
             <div className="flex flex-col pr-4">
               {title && (
-                <h3 className="text-lg font-semibold text-gray-900 leading-6">{title}</h3>
+                <h3 className="text-lg font-display font-semibold text-ink leading-6">{title}</h3>
               )}
               {description && (
                 <p className="text-sm text-gray-500 mt-0.5">{description}</p>
