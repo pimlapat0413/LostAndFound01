@@ -458,7 +458,7 @@ export default function ClaimPage() {
                 error={claimErrors.contact}
                 value={formData.contact}
                 onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                placeholder="เช่น 0812345678 หรือ Line: aom_123"
+                placeholder="เช่น 08xxxxxxx หรือ Line: xxxxxxx"
               />
             </div>
 

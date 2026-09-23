@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
-import './globals.css';
 import Sidebar from '@/components/layout/Sidebar';
 import TopBar from '@/components/layout/TopBar';
 import { RoleProvider } from '@/context/RoleContext';

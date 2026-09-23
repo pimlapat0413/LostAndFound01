@@ -6,7 +6,7 @@ export const currentUser: User = {
   email: 'aom123@gmail.com',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   role: 'user',
-  studentId: '65012345',
+  studentId: '6704101361',
 };
 
 export const categories: Category[] = [
@@ -21,62 +21,107 @@ export const categories: Category[] = [
 
 export const locations: LocationOption[] = [
   {
-    id: 'engineering',
-    name: 'คณะวิศวกรรมศาสตร์',
+    id: 'Agricultural Engineering and Agro-industry',
+    name: 'คณะวิศวกรรมและอุตสาหกรรมเกษตร',
     buildings: [
-      { id: 'eng-1', name: 'อาคารวิศวกรรม 1', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'] },
-      { id: 'eng-2', name: 'อาคารปฏิบัติการวิศวกรรม', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
-      { id: 'eng-3', name: 'อาคาร 50 ปี วิศวะ', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4', 'ชั้น 5'] },
+      { id: 'eng-1', name: 'อาคารวิศวกรรม', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'] },
+    
     ],
   },
+
   {
     id: 'science',
     name: 'คณะวิทยาศาสตร์',
     buildings: [
-      { id: 'sci-1', name: 'อาคารวิทยาศาสตร์ 1', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'] },
-      { id: 'sci-2', name: 'อาคารปฏิบัติการรวม', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
-      { id: 'sci-3', name: 'อาคารบรรยายรวม', floors: ['ชั้น 1', 'ชั้น 2'] },
+      { id: 'sci-1', name: 'อาคาร 60 ปี', floors: ['ห้องวิทย์ 2105', 'วิทย์ 2311'] },
+      { id: 'sci-2', name: 'อาคารจุฬา', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
     ],
   },
+
+    {
+    id: 'Faculty of Agricultural Production',
+    name: 'คณะผลิตกรรมการเกษตร',
+    buildings: [
+      { id: 'sci-1', name: 'อาคารผลิตกรรมการเกษตร', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'] },
+    ],
+  },
+
   {
     id: 'business',
     name: 'คณะบริหารธุรกิจ',
     buildings: [
-      { id: 'bus-1', name: 'อาคารบริหาร 1', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'] },
-      { id: 'bus-2', name: 'อาคาร MBA', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
+      { id: 'bus-1', name: 'อาคารคณะบริหารธุรกิจ', floors: ['ห้อง BA301', 'BA501'] },
     ],
   },
   {
-    id: 'humanities',
-    name: 'คณะมนุษยศาสตร์',
+    id: ' School of Tourism Development',
+    name: 'คณะพัฒนาการท่องเที่ยว',
     buildings: [
-      { id: 'hum-1', name: 'อาคารมนุษยศาสตร์ 1', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'] },
-      { id: 'hum-2', name: 'ศูนย์ภาษาและวัฒนธรรม', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
+      { id: 'hum-1', name: 'อาคารพัฒนาการท่องเที่ยว', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'] },
+      { id: 'hum-2', name: 'อาคาร 70 ปี', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
     ],
   },
   {
-    id: 'library',
-    name: 'สำนักหอสมุด',
+    id: 'Faculty of Fisheries Technology and Aquatic Resources',
+    name: 'คณะเทคโนโลยีการประมงและทรัพยากรทางน้ำ',
     buildings: [
-      { id: 'lib-main', name: 'อาคารหอสมุดกลาง', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4', 'ชั้น 5'] },
-      { id: 'lib-annex', name: 'อาคารเรียนรู้ตลอดชีวิต', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
+      { id: 'lib-main', name: 'อาคารเทคโนโลยีการประมง', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4', 'ชั้น 5'] },
+     
     ],
   },
   {
-    id: 'canteen',
-    name: 'โรงอาหาร',
+    id: 'Faculty of Economics',
+    name: 'คณะเศรษฐศาสตร์',
     buildings: [
-      { id: 'cant-central', name: 'โรงอาหารกลาง', floors: ['ชั้น 1', 'ชั้น 2'] },
-      { id: 'cant-eng', name: 'โรงอาหารวิศวะ', floors: ['ชั้น 1'] },
-      { id: 'cant-sci', name: 'โรงอาหารคณะวิทย์', floors: ['ชั้น 1'] },
+      { id: 'cant-central', name: 'อาคารคณะเศรษฐศาสตร์', floors: ['ห้อง EC302', 'EC402'] },
+
     ],
   },
   {
-    id: 'activity',
-    name: 'อาคารกิจกรรม',
+    id: ' Faculty of Economics',
+    name: 'คณะศิลปศาสตร์',
     buildings: [
-      { id: 'act-main', name: 'อาคารกิจกรรมนักศึกษา', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
-      { id: 'act-gym', name: 'ศูนย์กีฬาและนันทนาการ', floors: ['ชั้น 1', 'ชั้น 2'] },
+      { id: 'act-main', name: 'อาคารศิลปศาสตร์', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
+      
+    ],
+  },
+   {
+    id: 'Faculty of Architecture and Environmental Design',
+    name: 'คณะและการออกแบบสิ่งแวดล้อม',
+    buildings: [
+      { id: 'act-main', name: 'อาคารสถาปัตยกรรมศาสตร์', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
+      
+    ],
+  },
+     {
+    id: 'Faculty of Information and Communication',
+    name: 'คณะสารสนเทศและการสื่อสาร',
+    buildings: [
+      { id: 'act-main', name: 'อาคารสารสนเทศและการสื่อสาร', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
+
+    ],
+  },
+
+    {
+    id: 'Faculty of Animal Science and Technology',
+    name: 'คณะสัตวศาสตร์และเทคโนโลยี',
+    buildings: [
+      { id: 'act-main', name: 'อาคารคณะสัตวศาสตร์ฯ', floors: ['ห้อง AT1412', 'AT1413'] },
+    ],
+  },
+     {
+    id: 'Faculty of Nursing',
+    name: 'คณะพยาบาลศาสตร์',
+    buildings: [
+      { id: 'act-main', name: 'อาคารพยาบาลศาสตร์', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
+
+    ],
+  },
+      {
+    id: 'Faculty of Veterinary Medicine',
+    name: 'คณะสัตวแพทยศาสตร์',
+    buildings: [
+      { id: 'act-main', name: 'อาคารสัตวแพทยศาสตร์', floors: ['ชั้น 1', 'ชั้น 2', 'ชั้น 3'] },
     ],
   },
 ];
